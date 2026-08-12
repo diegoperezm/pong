@@ -1,9 +1,6 @@
 #include "collision.h"
-
 #include "entities.h"
-
 #include <math.h>
-
 
 int
 rectangles_overlap(
@@ -104,55 +101,28 @@ bounce_ball(
     const Paddle *paddle
 )
 {
-    BallPool *balls =
-        &state->balls;
+    BallPool *balls = &state->balls;
 
-
-    float paddle_center =
-        paddle->y +
-        paddle->height / 2.0f;
-
-
-    float ball_center =
-        balls->y[ball] +
-        BALL_SIZE / 2.0f;
-
-
-    float offset =
-        ball_center -
-        paddle_center;
+    float paddle_center = paddle->y + paddle->height / 2.0f;
+    float ball_center   = balls->y[ball] + BALL_SIZE / 2.0f;
+    float offset        = ball_center - paddle_center;
 
 
     /*
      * Hit position determines
      * outgoing vertical velocity.
      */
-    balls->vy[ball] =
-        offset * 7.0f;
+    balls->vy[ball]     = offset * 7.0f;
+    balls->speed[ball] += 20.0f;
 
 
-    balls->speed[ball] +=
-        20.0f;
-
-
-    if (balls->speed[ball] >
-        MAX_BALL_SPEED) {
-
-        balls->speed[ball] =
-            MAX_BALL_SPEED;
+    if (balls->speed[ball] > MAX_BALL_SPEED) {
+        balls->speed[ball] = MAX_BALL_SPEED;
     }
 
+    float horizontal = balls->vx[ball] < 0.0f ? -1.0f : 1.0f;
 
-    float horizontal =
-        balls->vx[ball] < 0.0f
-            ? -1.0f
-            : 1.0f;
-
-
-    balls->vx[ball] =
-        horizontal *
-        balls->speed[ball];
-
+    balls->vx[ball] = horizontal * balls->speed[ball];
 
     particles_spawn(
         &state->particles,
@@ -164,21 +134,13 @@ bounce_ball(
 
 
 static void
-ball_paddle_collision(
-    SimulationState *state
-)
+ball_paddle_collision(SimulationState *state)
 {
-    BallPool *balls =
-        &state->balls;
+    BallPool *balls = &state->balls;
 
-
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
-
+    for (int i = 0; i < MAX_BALLS; ++i) {
         if (!balls->active[i])
             continue;
-
 
         /*
          * Player paddle.
@@ -226,9 +188,7 @@ ball_paddle_collision(
                     state->enemy.width,
                     state->enemy.height)) {
 
-                balls->x[i] =
-                    state->enemy.x -
-                    BALL_SIZE;
+                balls->x[i] = state->enemy.x - BALL_SIZE;
 
 
                 bounce_ball(
@@ -393,8 +353,6 @@ collision_update(
 )
 {
     ball_wall_collision(state);
-
     ball_paddle_collision(state);
-
     powerup_collision(state);
 }

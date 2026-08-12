@@ -6,25 +6,18 @@
 #include "input.h"
 #include "game.h"
 #include "render.h"
-
+#include "debug.h"
 
 int
 main(void)
 {
-    InitWindow(
-        SCREEN_WIDTH,
-        SCREEN_HEIGHT,
-        "Pong"
-    );
-
-
+    InitWindow( SCREEN_WIDTH, SCREEN_HEIGHT, "Pong");
     SetTargetFPS(60);
 
-
+    DebugState debug;
     SimulationState state;
-
     game_init(&state);
-
+    debug_init(&debug);
 
     /*
      * Two small render snapshots.
@@ -43,13 +36,8 @@ main(void)
 
 
     current = previous;
-
-
     GameInput input = {0};
-
-
     double accumulator = 0.0;
-
 
     while (!WindowShouldClose()) {
 
@@ -59,35 +47,28 @@ main(void)
          * ----------------------------------------------------
          */
 
-        double frame_time =
-            GetFrameTime();
+        double frame_time = GetFrameTime();
 
 
         /*
          * Prevent giant simulation
          * steps after pauses/debugging.
          */
-        if (frame_time >
-            MAX_FRAME_TIME) {
-
-            frame_time =
-                MAX_FRAME_TIME;
+        if (frame_time > MAX_FRAME_TIME) {
+            frame_time = MAX_FRAME_TIME;
         }
 
-
+if (IsKeyPressed(KEY_F3)) {
+    debug.enabled = !debug.enabled;
+}
         /*
          * ----------------------------------------------------
          * 2. Sample platform input.
          * ----------------------------------------------------
          */
 
-        input_sample(
-            &input
-        );
-
-
-        accumulator +=
-            frame_time;
+        input_sample(&input);
+        accumulator += frame_time;
 
 
         /*
@@ -102,9 +83,7 @@ main(void)
              * Current render state becomes
              * previous render state.
              */
-            previous =
-                current;
-
+            previous = current;
 
             /*
              * Advance authoritative state.
@@ -125,8 +104,7 @@ main(void)
             );
 
 
-            accumulator -=
-                SIM_DT;
+            accumulator -= SIM_DT;
         }
 
 
@@ -136,11 +114,7 @@ main(void)
          * ----------------------------------------------------
          */
 
-        float alpha =
-            (float)(
-                accumulator /
-                SIM_DT
-            );
+        float alpha = (float)(accumulator/SIM_DT);
 
 
         /*
@@ -155,6 +129,19 @@ main(void)
             &current,
             alpha
         );
+
+debug_draw(
+    &debug,
+    &state
+);
+
+debug_update(
+    &debug,
+    &state,
+    GetFrameTime()
+);
+
+
     }
 
 

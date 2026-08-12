@@ -12,27 +12,27 @@
 
 void
 balls_clear(
-    BallPool *balls
+    BallPool* balls
 )
 {
     for (int i = 0; i < MAX_BALLS; ++i) {
         balls->active[i] = 0;
-        balls->x[i] = 0.0f;
-        balls->y[i] = 0.0f;
-        balls->vx[i] = 0.0f;
-        balls->vy[i] = 0.0f;
-        balls->speed[i] = 0.0f;
+        balls->x[i]      = 0.0f;
+        balls->y[i]      = 0.0f;
+        balls->vx[i]     = 0.0f;
+        balls->vy[i]     = 0.0f;
+        balls->speed[i]  = 0.0f;
     }
 }
 
 
 int
 ball_create(
-    BallPool *balls,
-    float x,
-    float y,
-    float vx,
-    float vy
+    BallPool* balls,
+    float     x,
+    float     y,
+    float     vx,
+    float     vy
 )
 {
     for (int i = 0; i < MAX_BALLS; ++i) {
@@ -48,11 +48,7 @@ ball_create(
         balls->vx[i] = vx;
         balls->vy[i] = vy;
 
-        balls->speed[i] =
-            sqrtf(
-                vx * vx +
-                vy * vy
-            );
+        balls->speed[i] = sqrtf( vx * vx + vy * vy);
 
         return i;
     }
@@ -193,37 +189,21 @@ particles_spawn(
 
 
 void
-particles_update(
-    ParticlePool *particles,
-    float dt
-)
+particles_update(ParticlePool *particles, float dt)
 {
-    for (int i = 0;
-         i < MAX_PARTICLES;
-         ++i) {
-
+    for (int i = 0; i < MAX_PARTICLES; ++i) {
         if (!particles->active[i])
             continue;
 
-
         particles->lifetime[i] -= dt;
-
-
         if (particles->lifetime[i] <= 0.0f) {
-
             particles->active[i] = 0;
-
             continue;
         }
 
 
-        particles->x[i] +=
-            particles->vx[i] * dt;
-
-        particles->y[i] +=
-            particles->vy[i] * dt;
-
-
+        particles->x[i] += particles->vx[i] * dt;
+        particles->y[i] += particles->vy[i] * dt;
         particles->vx[i] *= 0.98f;
         particles->vy[i] *= 0.98f;
     }
@@ -328,208 +308,4 @@ powerups_update(
 
 
 
-/*
-#include "entities.h"
-#include  "raylib.h"
-#include <math.h>
 
-
-// BALLS
-void balls_clear(BallPool* balls) 
-{
-  for (int i=0; i < MAX_BALLS; ++i){
-     balls->active[i] = 0;
-  } 
-}
-
-int balls_create(
- BallPool* balls,
- float x, 
- float y,
- float vx, 
- float vy
-)
-{
- for(int i=0; i < MAX_BALLS; ++i){
-  if(balls->active[i])
-    continue;
-  balls->active[i] = 1;
-  balls->x[i] = x;
-  balls->y[i] = y;
-  balls->vx[i] = vx;
-  balls->vy[i] = vy;
-  balls->speed[i] = sqrtf(vx*vx + vy*vy);
-  return i;
- }
- return -1;
-}	
-
-void ball_destroy(BallPool* balls, int index)
-{
-  if(index < 0 || index >= MAX_BALLS)
-      return;
-  balls->active[index] = 0;
-}
-
-// Particles
-void particles_clear(ParticlePool* particles)
-{
- for(int i=0; i < MAX_PARTICLES; ++i)
-   particles->active[i] = 0;
-}
-
-void particle_spawn(
-  ParticlePool* particles,
-  float x,
-  float y, 
-  int count
-)
-{
- for(int n=0; n < count; ++n) {
-   int slot = -1;
-   for (int i=0; i < MAX_PARTICLES; ++i) {
-      if(!particles->active[i]){
-        slot = i;
-	break;
-      }
-   }
-   if(slot < 0) return;
-
-   float angle = (float)GetRandomValue(0,359)*(PI/180.0f);
-   float speed = (float)GetRandomValue(50,180);
-   particles->active[slot] = 1;
-
-   particles->x[slot] = x;
-   particles->y[slot] = y;
-
-   particles->vx[slot] = cosf(angle) * speed;
-   particles->vy[slot] = sinf(angle) * speed;
-   particles->max_lifetime[slot] = 0.25f + (float)GetRandomValue( 0, 100) / 1000.0f;
-
-
-   particles->lifetime[slot] = particles->max_lifetime[slot];
-
-   particles->size[slot] = (float)GetRandomValue( 2, 5);
- 
- }
-}
-
-
-void particles_update( ParticlePool *particles, float dt)
-{
-    for (int i = 0;
-         i < MAX_PARTICLES;
-         ++i) {
-
-        if (!particles->active[i])
-            continue;
-
-
-        particles->lifetime[i] -=
-            dt;
-
-
-        if (particles->lifetime[i] <= 0.0f) {
-
-            particles->active[i] = 0;
-
-            continue;
-        }
-
-
-        particles->x[i] +=
-            particles->vx[i] * dt;
-
-        particles->y[i] +=
-            particles->vy[i] * dt;
-
-
-        particles->vx[i] *= 0.98f;
-        particles->vy[i] *= 0.98f;
-    }
-}
-
-void
-powerups_clear(
-    PowerupPool *powerups
-)
-{
-    for (int i = 0;
-         i < MAX_POWERUPS;
-         ++i) {
-
-        powerups->active[i] = 0;
-    }
-}
-
-
-int
-powerup_create(
-    PowerupPool *powerups
-)
-{
-    for (int i = 0;
-         i < MAX_POWERUPS;
-         ++i) {
-
-        if (powerups->active[i])
-            continue;
-
-
-        powerups->active[i] = 1;
-
-
-        powerups->x[i] =
-            (float)GetRandomValue(
-                (int)COURT_LEFT + 80,
-                (int)COURT_RIGHT - 80
-            );
-
-
-        powerups->y[i] =
-            (float)GetRandomValue(
-                (int)COURT_TOP + 40,
-                (int)COURT_BOTTOM - 40
-            );
-
-
-        powerups->type[i] =
-            GetRandomValue(0, 1) == 0
-                ? POWERUP_SPEED
-                : POWERUP_MULTI_BALL;
-
-
-        powerups->lifetime[i] =
-            8.0f;
-
-
-        return i;
-    }
-
-    return -1;
-}
-
-
-void
-powerups_update(
-    PowerupPool *powerups,
-    float dt
-)
-{
-    for (int i = 0;
-         i < MAX_POWERUPS;
-         ++i) {
-
-        if (!powerups->active[i])
-            continue;
-
-
-        powerups->lifetime[i] -=
-            dt;
-
-
-        if (powerups->lifetime[i] <= 0.0f)
-            powerups->active[i] = 0;
-    }
-}
-*/

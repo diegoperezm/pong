@@ -7,9 +7,7 @@
 
 
 static void
-paddle_clamp(
-    Paddle *paddle
-)
+paddle_clamp(Paddle *paddle)
 {
     if (paddle->y < COURT_TOP)
         paddle->y = COURT_TOP;
@@ -39,24 +37,14 @@ player_system(
 {
     float direction = 0.0f;
 
-
     if (input->up)
         direction -= 1.0f;
-
-
     if (input->down)
         direction += 1.0f;
 
+    state->player.y += direction * state->player.speed * dt;
 
-    state->player.y +=
-        direction *
-        state->player.speed *
-        dt;
-
-
-    paddle_clamp(
-        &state->player
-    );
+    paddle_clamp(&state->player);
 }
 
 
@@ -72,25 +60,16 @@ enemy_system(
 )
 {
     int target = -1;
-
     float best_x =
         -100000.0f;
 
-
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
+    for (int i = 0; i < MAX_BALLS; ++i) {
 
         if (!state->balls.active[i])
             continue;
 
-
-        if (state->balls.x[i] >
-            best_x) {
-
-            best_x =
-                state->balls.x[i];
-
+        if (state->balls.x[i] > best_x) {
+            best_x = state->balls.x[i];
             target = i;
         }
     }
@@ -100,29 +79,21 @@ enemy_system(
         return;
 
 
-    float ball_y =
-        state->balls.y[target] +
-        BALL_SIZE / 2.0f;
+    float ball_y = state->balls.y[target] + BALL_SIZE / 2.0f;
 
 
-    float paddle_y =
-        state->enemy.y +
-        state->enemy.height / 2.0f;
+    float paddle_y = state->enemy.y + state->enemy.height / 2.0f;
 
 
     if (ball_y < paddle_y)
-        state->enemy.y -=
-            AI_SPEED * dt;
+        state->enemy.y -= AI_SPEED * dt;
 
 
     else if (ball_y > paddle_y)
-        state->enemy.y +=
-            AI_SPEED * dt;
+        state->enemy.y += AI_SPEED * dt;
 
 
-    paddle_clamp(
-        &state->enemy
-    );
+    paddle_clamp(&state->enemy);
 }
 
 
@@ -132,29 +103,16 @@ enemy_system(
  */
 
 static void
-ball_movement_system(
-    SimulationState *state,
-    float dt
-)
+ball_movement_system( SimulationState *state, float dt)
 {
-    BallPool *balls =
-        &state->balls;
+    BallPool *balls = &state->balls;
 
-
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
-
+    for (int i = 0; i < MAX_BALLS; ++i) {
         if (!balls->active[i])
             continue;
 
-
-        balls->x[i] +=
-            balls->vx[i] * dt;
-
-
-        balls->y[i] +=
-            balls->vy[i] * dt;
+        balls->x[i] += balls->vx[i] * dt;
+        balls->y[i] += balls->vy[i] * dt;
     }
 }
 
@@ -169,20 +127,13 @@ scoring_system(
     SimulationState *state
 )
 {
-    BallPool *balls =
-        &state->balls;
-
-
+    BallPool *balls = &state->balls;
     int active_balls = 0;
 
-
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
+    for (int i = 0; i < MAX_BALLS; ++i) {
 
         if (!balls->active[i])
             continue;
-
 
         ++active_balls;
 
@@ -190,91 +141,59 @@ scoring_system(
         /*
          * Enemy scores.
          */
-        if (balls->x[i] <
-            COURT_LEFT - BALL_SIZE) {
+        if (balls->x[i] < COURT_LEFT - BALL_SIZE) {
 
             state->enemy.score++;
-
-
             particles_spawn(
                 &state->particles,
-
                 balls->x[i],
                 balls->y[i],
-
                 20
             );
 
 
-            ball_destroy(
-                balls,
-                i
-            );
+            ball_destroy(balls, i);
         }
 
 
         /*
          * Player scores.
          */
-        else if (
-            balls->x[i] >
-            COURT_RIGHT) {
-
+        else if (balls->x[i] > COURT_RIGHT) {
             state->player.score++;
-
 
             particles_spawn(
                 &state->particles,
-
                 balls->x[i],
                 balls->y[i],
-
                 20
             );
 
-
-            ball_destroy(
-                balls,
-                i
-            );
+            ball_destroy(balls, i);
         }
     }
 
 
-    if (state->player.score >=
-        WINNING_SCORE) {
+    if (state->player.score >= WINNING_SCORE) {
 
         state->winner = 1;
-
-        state->mode =
-            GAME_OVER;
-
+        state->mode = GAME_OVER;
         return;
     }
 
 
-    if (state->enemy.score >=
-        WINNING_SCORE) {
-
+    if (state->enemy.score >= WINNING_SCORE) {
         state->winner = 2;
-
-        state->mode =
-            GAME_OVER;
-
+        state->mode = GAME_OVER;
         return;
     }
-
 
     /*
      * Count again after removals.
      */
     active_balls = 0;
 
-
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
-
+    for (int i = 0; i < MAX_BALLS; ++i) {
         if (balls->active[i])
             ++active_balls;
     }
@@ -284,26 +203,14 @@ scoring_system(
      * Guarantee at least one ball.
      */
     if (active_balls == 0) {
-
-        float direction =
-            GetRandomValue(0, 1)
-                ? 1.0f
-                : -1.0f;
-
+        float direction = GetRandomValue(0, 1) ? 1.0f : -1.0f;
 
         ball_create(
             balls,
-
             SCREEN_WIDTH / 2.0f,
             SCREEN_HEIGHT / 2.0f,
-
-            INITIAL_BALL_SPEED *
-                direction,
-
-            (float)GetRandomValue(
-                -100,
-                100
-            )
+            INITIAL_BALL_SPEED * direction,
+            (float)GetRandomValue(-100, 100)
         );
     }
 }
@@ -322,16 +229,9 @@ powerup_system(
 {
     state->powerup_timer -= dt;
 
-
     if (state->powerup_timer <= 0.0f) {
-
-        powerup_create(
-            &state->powerups
-        );
-
-
-        state->powerup_timer =
-            POWERUP_INTERVAL;
+        powerup_create( &state->powerups);
+        state->powerup_timer = POWERUP_INTERVAL;
     }
 }
 
@@ -348,46 +248,12 @@ simulation_update(
     float dt
 )
 {
-    player_system(
-        state,
-        input,
-        dt
-    );
-
-
-    enemy_system(
-        state,
-        dt
-    );
-
-
-    ball_movement_system(
-        state,
-        dt
-    );
-
-
-    collision_update(
-        state
-    );
-
-
-    scoring_system(
-        state
-    );
-
-
-    particles_update( &state->particles, dt);
-
-
-    powerups_update(
-        &state->powerups,
-        dt
-    );
-
-
-    powerup_system(
-        state,
-        dt
-    );
+    player_system(state, input, dt);
+    enemy_system(state, dt);
+    ball_movement_system(state, dt);
+    collision_update(state);
+//    scoring_system(state);
+//    particles_update( &state->particles, dt);
+ //   powerups_update( &state->powerups, dt);
+ //   powerup_system( state, dt);
 }

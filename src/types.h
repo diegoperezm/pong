@@ -47,7 +47,7 @@ typedef struct
  */
 typedef struct 
 {
-  int active[MAX_BALLS];
+  int   active[MAX_BALLS];
   float x[MAX_BALLS];
   float y[MAX_BALLS];
   float vx[MAX_BALLS];
@@ -125,5 +125,17 @@ typedef struct
   float ball_y[MAX_BALLS];
  
 } RenderSnapshot;
+
+
+typedef struct {
+  int enabled;
+  int show_collisions;
+  int show_velocity;
+  float frame_time;
+  float fps;
+  int ball_count;
+  int particle_count;
+  int powerup_count;
+} DebugState;
 
 #endif

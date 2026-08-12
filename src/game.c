@@ -5,9 +5,7 @@
 
 
 static void
-reset_paddles(
-    SimulationState *state
-)
+reset_paddles( SimulationState *state)
 {
     state->player.x =
         COURT_LEFT + 20.0f;
@@ -47,91 +45,44 @@ reset_paddles(
 
 
 void
-game_init(
-    SimulationState *state
-)
+game_init(SimulationState *state)
 {
     /*
      * Zero entire state.
      */
-    *state =
-        (SimulationState){0};
+    *state = (SimulationState){0};
 
-
-    state->mode =
-        GAME_TITLE;
-
+    state->mode = GAME_TITLE;
 
     reset_paddles(state);
-
-
-    balls_clear(
-        &state->balls
-    );
-
-
-    particles_clear(
-        &state->particles
-    );
-
-
-    powerups_clear(
-        &state->powerups
-    );
+    balls_clear(&state->balls);
+    particles_clear(&state->particles);
+    powerups_clear(&state->powerups);
 }
 
 
 void
-game_start(
-    SimulationState *state
-)
+game_start(SimulationState *state)
 {
-    state->mode =
-        GAME_PLAYING;
-
-    state->game_time = 0.0f;
-
-    state->winner = 0;
-
-
+    state->mode         = GAME_PLAYING;
+    state->game_time    = 0.0f;
+    state->winner       = 0;
     state->player.score = 0;
-    state->enemy.score = 0;
-
+    state->enemy.score  = 0;
 
     reset_paddles(state);
+    balls_clear(&state->balls);
+    particles_clear(&state->particles);
+    powerups_clear(&state->powerups);
 
-
-    balls_clear(
-        &state->balls
-    );
-
-
-    particles_clear(
-        &state->particles
-    );
-
-
-    powerups_clear(
-        &state->powerups
-    );
-
-
-    state->powerup_timer =
-        POWERUP_INTERVAL;
-
+    state->powerup_timer = POWERUP_INTERVAL;
 
     ball_create(
         &state->balls,
-
-        SCREEN_WIDTH / 2.0f -
-            BALL_SIZE / 2.0f,
-
-        SCREEN_HEIGHT / 2.0f -
-            BALL_SIZE / 2.0f,
-
-        INITIAL_BALL_SPEED,
-
-        100.0f
+        SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
+        SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
+        INITIAL_BALL_SPEED, 
+	100.0f
     );
 }
 
@@ -145,27 +96,18 @@ game_update(
 {
     state->game_time += dt;
 
-
     switch (state->mode) {
-
         case GAME_TITLE:
-
             if (input->start)
                 game_start(state);
 
             break;
 
-
         case GAME_PLAYING:
-
             if (input->pause) {
-
-                state->mode =
-                    GAME_PAUSED;
-
+                state->mode = GAME_PAUSED;
                 break;
             }
-
 
             simulation_update(
                 state,
@@ -175,21 +117,15 @@ game_update(
 
             break;
 
-
         case GAME_PAUSED:
-
             if (input->pause)
-                state->mode =
-                    GAME_PLAYING;
-
+                state->mode = GAME_PLAYING;
             break;
 
 
         case GAME_OVER:
-
             if (input->start)
                 game_start(state);
-
             break;
     }
 }
@@ -206,33 +142,17 @@ game_make_render_snapshot(
      * the renderer needs.
      */
 
-    snapshot->player_x =
-        state->player.x;
+    snapshot->player_x = state->player.x;
+    snapshot->player_y = state->player.y;
 
-    snapshot->player_y =
-        state->player.y;
-
-
-    snapshot->enemy_x =
-        state->enemy.x;
-
-    snapshot->enemy_y =
-        state->enemy.y;
+    snapshot->enemy_x = state->enemy.x;
+    snapshot->enemy_y = state->enemy.y;
 
 
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
+    for (int i = 0; i < MAX_BALLS; ++i) {
+        snapshot->ball_active[i] = state->balls.active[i];
+        snapshot->ball_x[i]      = state->balls.x[i];
 
-        snapshot->ball_active[i] =
-            state->balls.active[i];
-
-
-        snapshot->ball_x[i] =
-            state->balls.x[i];
-
-
-        snapshot->ball_y[i] =
-            state->balls.y[i];
+        snapshot->ball_y[i] = state->balls.y[i];
     }
 }

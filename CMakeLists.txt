@@ -38,6 +38,7 @@ add_executable(
     src/collision.c
     src/entities.c
     src/render.c
+    src/debug.c
 )
 
 # Include Directories

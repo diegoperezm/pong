@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 #define SCREEN_WIDTH  800
-#define SCREEN_HEIGHT 450
+#define SCREEN_HEIGHT 800//450
 
 // simulation runs independently of rendering
 #define SIM_HZ 120
