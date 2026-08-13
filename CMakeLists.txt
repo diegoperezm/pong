@@ -11,9 +11,20 @@ set(CMAKE_C_EXTENSIONS OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Wall -Werror  -Wdouble-promotion -Wno-sign-conversion
+set(CMAKE_C_FLAGS_DEBUG "-g3 -fsanitize=address,undefined -Wno-unused-parameter -Wno-unused-function ")
+set(CMAKE_C_FLAGS_RELEASE "-O3")
+
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
+elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_BUILD_TYPE Debug)
 endif()
+
+
+
+
 
 # Third-Party Libraries
 ###############################################################################
@@ -81,3 +92,8 @@ install(
 
 # cmake -S . -B build
 # cmake --build build
+
+
+#rm -rf build
+#cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+#cmake --build build

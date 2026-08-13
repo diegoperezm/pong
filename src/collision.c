@@ -101,7 +101,7 @@ bounce_ball(
     const Paddle *paddle
 )
 {
-    BallPool *balls = &state->balls;
+    BallPool* balls = &state->balls;
 
     float paddle_center = paddle->y + paddle->height / 2.0f;
     float ball_center   = balls->y[ball] + BALL_SIZE / 2.0f;
@@ -123,13 +123,14 @@ bounce_ball(
     float horizontal = balls->vx[ball] < 0.0f ? -1.0f : 1.0f;
 
     balls->vx[ball] = horizontal * balls->speed[ball];
-
+/*
     particles_spawn(
         &state->particles,
         balls->x[ball],
         balls->y[ball],
         8
     );
+*/
 }
 
 
@@ -354,5 +355,5 @@ collision_update(
 {
     ball_wall_collision(state);
     ball_paddle_collision(state);
-    powerup_collision(state);
+//    powerup_collision(state);
 }

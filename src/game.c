@@ -7,40 +7,17 @@
 static void
 reset_paddles( SimulationState *state)
 {
-    state->player.x =
-        COURT_LEFT + 20.0f;
+    state->player.x      = COURT_LEFT + 20.0f;
+    state->player.y      = SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
+    state->player.width  = PADDLE_WIDTH;
+    state->player.height = PADDLE_HEIGHT;
+    state->player.speed  = PLAYER_SPEED;
 
-    state->player.y =
-        SCREEN_HEIGHT / 2.0f -
-        PADDLE_HEIGHT / 2.0f;
-
-    state->player.width =
-        PADDLE_WIDTH;
-
-    state->player.height =
-        PADDLE_HEIGHT;
-
-    state->player.speed =
-        PLAYER_SPEED;
-
-
-    state->enemy.x =
-        COURT_RIGHT -
-        PADDLE_WIDTH -
-        20.0f;
-
-    state->enemy.y =
-        SCREEN_HEIGHT / 2.0f -
-        PADDLE_HEIGHT / 2.0f;
-
-    state->enemy.width =
-        PADDLE_WIDTH;
-
-    state->enemy.height =
-        PADDLE_HEIGHT;
-
-    state->enemy.speed =
-        AI_SPEED;
+    state->enemy.x      = COURT_RIGHT - PADDLE_WIDTH - 20.0f;
+    state->enemy.y      =  300;//SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
+    state->enemy.width  = PADDLE_WIDTH;
+    state->enemy.height = PADDLE_HEIGHT;
+    state->enemy.speed  = AI_SPEED;
 }
 
 
@@ -72,8 +49,8 @@ game_start(SimulationState *state)
 
     reset_paddles(state);
     balls_clear(&state->balls);
-    particles_clear(&state->particles);
-    powerups_clear(&state->powerups);
+//    particles_clear(&state->particles);
+//    powerups_clear(&state->powerups);
 
     state->powerup_timer = POWERUP_INTERVAL;
 

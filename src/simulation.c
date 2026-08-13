@@ -7,15 +7,13 @@
 
 
 static void
-paddle_clamp(Paddle *paddle)
+paddle_clamp(Paddle* paddle)
 {
     if (paddle->y < COURT_TOP)
         paddle->y = COURT_TOP;
 
 
-    float max_y =
-        COURT_BOTTOM -
-        paddle->height;
+    float max_y = COURT_BOTTOM - paddle->height;
 
 
     if (paddle->y > max_y)
@@ -60,8 +58,7 @@ enemy_system(
 )
 {
     int target = -1;
-    float best_x =
-        -100000.0f;
+    float best_x = -100000.0f;
 
     for (int i = 0; i < MAX_BALLS; ++i) {
 
@@ -80,8 +77,6 @@ enemy_system(
 
 
     float ball_y = state->balls.y[target] + BALL_SIZE / 2.0f;
-
-
     float paddle_y = state->enemy.y + state->enemy.height / 2.0f;
 
 
@@ -249,7 +244,7 @@ simulation_update(
 )
 {
     player_system(state, input, dt);
-    enemy_system(state, dt);
+ //   enemy_system(state, dt);
     ball_movement_system(state, dt);
     collision_update(state);
 //    scoring_system(state);
