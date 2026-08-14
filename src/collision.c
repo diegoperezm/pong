@@ -1,6 +1,7 @@
 #include "collision.h"
 #include "entities.h"
 #include <math.h>
+#include <stdio.h>
 
 int
 rectangles_overlap(
@@ -33,57 +34,41 @@ ball_wall_collision(
     SimulationState *state
 )
 {
-    BallPool *balls =
-        &state->balls;
+    BallPool *balls = &state->balls;
 
 
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
+    for (int i = 0; i < MAX_BALLS; ++i) {
 
         if (!balls->active[i])
             continue;
 
 
         if (balls->y[i] <= COURT_TOP) {
-
-            balls->y[i] =
-                COURT_TOP;
-
-            balls->vy[i] =
-                fabsf(
-                    balls->vy[i]
-                );
-
-
+            balls->y[i] = COURT_TOP;
+            balls->vy[i] = fabsf( balls->vy[i]);
+/*
             particles_spawn(
                 &state->particles,
                 balls->x[i],
                 balls->y[i],
                 4
             );
+*/
         }
 
 
-        if (balls->y[i] + BALL_SIZE >=
-            COURT_BOTTOM) {
+        if (balls->y[i] + BALL_SIZE >= COURT_BOTTOM) {
+            balls->y[i] = COURT_BOTTOM - BALL_SIZE;
+            balls->vy[i] = -fabsf( balls->vy[i]);
 
-            balls->y[i] =
-                COURT_BOTTOM -
-                BALL_SIZE;
-
-            balls->vy[i] =
-                -fabsf(
-                    balls->vy[i]
-                );
-
-
+/*
             particles_spawn(
                 &state->particles,
                 balls->x[i],
                 balls->y[i],
                 4
             );
+*/
         }
     }
 }
@@ -101,28 +86,70 @@ bounce_ball(
     const Paddle *paddle
 )
 {
-    BallPool* balls = &state->balls;
+    BallPool *balls = &state->balls;
 
-    float paddle_center = paddle->y + paddle->height / 2.0f;
-    float ball_center   = balls->y[ball] + BALL_SIZE / 2.0f;
-    float offset        = ball_center - paddle_center;
+    float paddle_center =
+        paddle->y +
+        paddle->height / 2.0f;
 
+    float ball_center =
+        balls->y[ball] +
+        BALL_SIZE / 2.0f;
+
+    float offset =
+        ball_center -
+        paddle_center;
 
     /*
-     * Hit position determines
-     * outgoing vertical velocity.
+     * Increase speed.
      */
-    balls->vy[ball]     = offset * 7.0f;
     balls->speed[ball] += 20.0f;
 
-
     if (balls->speed[ball] > MAX_BALL_SPEED) {
-        balls->speed[ball] = MAX_BALL_SPEED;
+        balls->speed[ball] =
+            MAX_BALL_SPEED;
     }
 
-    float horizontal = balls->vx[ball] < 0.0f ? -1.0f : 1.0f;
+    /*
+     * Reverse horizontal direction.
+     */
+    float horizontal =
+        balls->vx[ball] < 0.0f
+            ? 1.0f
+            : -1.0f;
 
-    balls->vx[ball] = horizontal * balls->speed[ball];
+    /*
+     * Vertical velocity is determined
+     * by where the ball hit the paddle.
+     */
+    float vertical =
+        offset * 7.0f;
+
+    /*
+     * Normalize the direction.
+     */
+    float length =
+        sqrtf(
+            horizontal * horizontal +
+            vertical * vertical
+        );
+
+    if (length > 0.0f) {
+
+        horizontal /= length;
+        vertical   /= length;
+    }
+
+    /*
+     * Apply speed.
+     */
+    balls->vx[ball] =
+        horizontal *
+        balls->speed[ball];
+
+    balls->vy[ball] =
+        vertical *
+        balls->speed[ball];
 /*
     particles_spawn(
         &state->particles,
@@ -191,7 +218,7 @@ ball_paddle_collision(SimulationState *state)
 
                 balls->x[i] = state->enemy.x - BALL_SIZE;
 
-
+//                printf("bounce ball");
                 bounce_ball(
                     state,
                     i,

@@ -4,14 +4,9 @@
 
 
 static float
-lerp(
-    float a,
-    float b,
-    float t
-)
+lerp( float a, float b, float t) 
 {
-    return a +
-        (b - a) * t;
+    return a + (b - a) * t;
 }
 
 
@@ -23,11 +18,7 @@ lerp(
 static void
 draw_court(void)
 {
-    for (
-        int y = (int)COURT_TOP;
-        y < (int)COURT_BOTTOM;
-        y += 20
-    ) {
+    for ( int y = (int)COURT_TOP; y < (int)COURT_BOTTOM; y += 20) {
 
         DrawRectangle(
             SCREEN_WIDTH / 2 - 2,
@@ -54,38 +45,15 @@ draw_paddles(
 )
 {
     (void)state;
+    float player_x = lerp(previous->player_x, current->player_x, alpha);
 
 
-    float player_x =
-        lerp(
-            previous->player_x,
-            current->player_x,
-            alpha
-        );
+    float player_y = lerp( previous->player_y, current->player_y, alpha);
+
+    float enemy_x  = lerp( previous->enemy_x, current->enemy_x, alpha);
 
 
-    float player_y =
-        lerp(
-            previous->player_y,
-            current->player_y,
-            alpha
-        );
-
-
-    float enemy_x =
-        lerp(
-            previous->enemy_x,
-            current->enemy_x,
-            alpha
-        );
-
-
-    float enemy_y =
-        lerp(
-            previous->enemy_y,
-            current->enemy_y,
-            alpha
-        );
+    float enemy_y  = lerp( previous->enemy_y, current->enemy_y, alpha);
 
 
     DrawRectangle(
@@ -123,10 +91,7 @@ draw_balls(
     float alpha
 )
 {
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
-
+    for (int i = 0; i < MAX_BALLS; ++i) {
         /*
          * Ball didn't exist in either
          * snapshot.
@@ -147,29 +112,12 @@ draw_balls(
          */
         if (!previous->ball_active[i]) {
 
-            x =
-                current->ball_x[i];
+            x = current->ball_x[i];
+            y = current->ball_y[i];
 
-            y =
-                current->ball_y[i];
-        }
-
-        else {
-
-            x =
-                lerp(
-                    previous->ball_x[i],
-                    current->ball_x[i],
-                    alpha
-                );
-
-
-            y =
-                lerp(
-                    previous->ball_y[i],
-                    current->ball_y[i],
-                    alpha
-                );
+        } else {
+            x = lerp( previous->ball_x[i], current->ball_x[i], alpha);
+            y = lerp( previous->ball_y[i], current->ball_y[i], alpha);
         }
 
 
@@ -196,25 +144,17 @@ draw_particles(
     const SimulationState *state
 )
 {
-    const ParticlePool *particles =
-        &state->particles;
+    const ParticlePool *particles = &state->particles;
 
 
-    for (int i = 0;
-         i < MAX_PARTICLES;
-         ++i) {
-
+    for (int i = 0; i < MAX_PARTICLES; ++i) {
         if (!particles->active[i])
             continue;
 
 
-        float life =
-            particles->lifetime[i] /
-            particles->max_lifetime[i];
+        float life = particles->lifetime[i] / particles->max_lifetime[i];
 
-
-        int alpha =
-            (int)(life * 255.0f);
+        int alpha = (int)(life * 255.0f);
 
 
         if (alpha < 0)

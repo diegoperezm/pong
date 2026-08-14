@@ -4,7 +4,7 @@
 #include "entities.h"
 
 #include "raylib.h"
-
+#include <stdio.h> 
 
 static void
 paddle_clamp(Paddle* paddle)
@@ -35,10 +35,8 @@ player_system(
 {
     float direction = 0.0f;
 
-    if (input->up)
-        direction -= 1.0f;
-    if (input->down)
-        direction += 1.0f;
+    if (input->up)   direction -= 1.0f;
+    if (input->down) direction += 1.0f;
 
     state->player.y += direction * state->player.speed * dt;
 
@@ -57,11 +55,14 @@ enemy_system(
     float dt
 )
 {
+
+// The index of the ball the AI chooses.
     int target = -1;
+
+// The largest X coordinate we've seen.
     float best_x = -100000.0f;
 
     for (int i = 0; i < MAX_BALLS; ++i) {
-
         if (!state->balls.active[i])
             continue;
 
@@ -72,23 +73,26 @@ enemy_system(
     }
 
 
-    if (target < 0)
+    if (target < 0) {
+        printf("enemy_system var target:%d\n", target);
         return;
+    }
 
 
-    float ball_y = state->balls.y[target] + BALL_SIZE / 2.0f;
+    float ball_y   = state->balls.y[target] + BALL_SIZE / 2.0f;
     float paddle_y = state->enemy.y + state->enemy.height / 2.0f;
 
 
-    if (ball_y < paddle_y)
+    if (ball_y < paddle_y) {
+ //       printf("ball_y < paddle_y\n");
         state->enemy.y -= AI_SPEED * dt;
 
-
-    else if (ball_y > paddle_y)
+    } else if (ball_y > paddle_y) {
+ //       printf("ball_y > paddle_y\n");
         state->enemy.y += AI_SPEED * dt;
+    }
 
-
-    paddle_clamp(&state->enemy);
+//    paddle_clamp(&state->enemy);
 }
 
 
@@ -244,11 +248,11 @@ simulation_update(
 )
 {
     player_system(state, input, dt);
- //   enemy_system(state, dt);
+    enemy_system(state, dt);
     ball_movement_system(state, dt);
     collision_update(state);
-//    scoring_system(state);
-//    particles_update( &state->particles, dt);
+    scoring_system(state);
+    particles_update( &state->particles, dt);
  //   powerups_update( &state->powerups, dt);
  //   powerup_system( state, dt);
 }

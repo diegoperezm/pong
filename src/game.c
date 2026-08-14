@@ -49,7 +49,7 @@ game_start(SimulationState *state)
 
     reset_paddles(state);
     balls_clear(&state->balls);
-//    particles_clear(&state->particles);
+    particles_clear(&state->particles);
 //    powerups_clear(&state->powerups);
 
     state->powerup_timer = POWERUP_INTERVAL;

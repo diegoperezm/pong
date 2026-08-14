@@ -116,10 +116,7 @@ particles_spawn(
         /*
          * Find a free particle slot.
          */
-        for (int i = 0;
-             i < MAX_PARTICLES;
-             ++i) {
-
+        for (int i = 0; i < MAX_PARTICLES; ++i) {
             if (!particles->active[i]) {
                 slot = i;
                 break;
@@ -129,23 +126,12 @@ particles_spawn(
         /*
          * Pool is full.
          */
-        if (slot < 0)
-            return;
+        if (slot < 0) return;
 
 
-        float angle =
-            (float)GetRandomValue(
-                0,
-                359
-            ) *
-            (PI / 180.0f);
+        float angle = (float)GetRandomValue(0, 359) * (PI / 180.0f);
 
-
-        float speed =
-            (float)GetRandomValue(
-                50,
-                180
-            );
+        float speed = (float)GetRandomValue(50, 180);
 
 
         particles->active[slot] = 1;
@@ -154,36 +140,21 @@ particles_spawn(
         particles->y[slot] = y;
 
 
-        particles->vx[slot] =
-            cosf(angle) * speed;
+        particles->vx[slot] = cosf(angle) * speed;
 
-        particles->vy[slot] =
-            sinf(angle) * speed;
+        particles->vy[slot] = sinf(angle) * speed;
 
 
-        particles->max_lifetime[slot] =
-            0.25f +
-            (float)GetRandomValue(
-                0,
-                100
-            ) / 1000.0f;
+        particles->max_lifetime[slot] = 0.25f + (float)GetRandomValue( 0, 100) / 1000.0f; 
 
-
-        /*
+	/*
          * IMPORTANT:
          *
          * max_lifetime is an array.
          * We need [slot].
          */
-        particles->lifetime[slot] =
-            particles->max_lifetime[slot];
-
-
-        particles->size[slot] =
-            (float)GetRandomValue(
-                2,
-                5
-            );
+        particles->lifetime[slot] = particles->max_lifetime[slot];
+        particles->size[slot] = (float)GetRandomValue( 2, 5);
     }
 }
 
