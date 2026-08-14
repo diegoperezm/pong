@@ -69,6 +69,9 @@ main(void)
             frame_time = MAX_FRAME_TIME;
         }
 
+        if (IsKeyPressed(KEY_F3)) {
+          debug.enabled = !debug.enabled;
+        }
         /*
          * ----------------------------------------------------
          * 2. Sample platform input.
@@ -77,11 +80,6 @@ main(void)
 
         input_sample(&input);
         accumulator += frame_time;
-
-
-        if (IsKeyPressed(KEY_F3)) {
-          debug.enabled = !debug.enabled;
-        }
 
 
         /*
@@ -143,19 +141,23 @@ main(void)
             alpha
         );
 
-         debug_update(
-             &debug,
-             &state,
-             GetFrameTime()
-         );
+debug_draw(
+    &debug,
+    &state
+);
 
-         debug_draw(
-             &debug,
-             &state
-         );
+debug_update(
+    &debug,
+    &state,
+    GetFrameTime()
+);
+
+
     }
 
 
     CloseWindow();
+
+
     return 0;
 }

@@ -4,7 +4,7 @@
 #include "log.h"
 
 static void
-reset_paddles( SimulationState *state)
+reset_paddles(SimulationState* state)
 {
     state->player.x      = COURT_LEFT + 20.0f;
     state->player.y      = SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
@@ -13,7 +13,7 @@ reset_paddles( SimulationState *state)
     state->player.speed  = PLAYER_SPEED;
 
     state->enemy.x      = COURT_RIGHT - PADDLE_WIDTH - 20.0f;
-    state->enemy.y      =  300;//SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
+    state->enemy.y      = SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
     state->enemy.width  = PADDLE_WIDTH;
     state->enemy.height = PADDLE_HEIGHT;
     state->enemy.speed  = AI_SPEED;
@@ -23,9 +23,8 @@ reset_paddles( SimulationState *state)
 void
 game_init(SimulationState *state)
 {
-    /*
-     * Zero entire state.
-     */
+
+//  Zero entire state.
     *state = (SimulationState){0};
 
     state->mode = GAME_TITLE;
@@ -73,12 +72,10 @@ game_update(
 )
 {
     state->game_time += dt;
-
     switch (state->mode) {
         case GAME_TITLE:
             if (input->start)
                 game_start(state);
-
             break;
 
         case GAME_PLAYING:
@@ -92,15 +89,12 @@ game_update(
                 input,
                 dt
             );
-
             break;
 
         case GAME_PAUSED:
             if (input->pause)
                 state->mode = GAME_PLAYING;
             break;
-
-
         case GAME_OVER:
             if (input->start)
                 game_start(state);
@@ -119,7 +113,6 @@ game_make_render_snapshot(
      * We explicitly copy only things
      * the renderer needs.
      */
-
     snapshot->player_x = state->player.x;
     snapshot->player_y = state->player.y;
 
@@ -130,7 +123,6 @@ game_make_render_snapshot(
     for (int i = 0; i < MAX_BALLS; ++i) {
         snapshot->ball_active[i] = state->balls.active[i];
         snapshot->ball_x[i]      = state->balls.x[i];
-
         snapshot->ball_y[i] = state->balls.y[i];
     }
 }

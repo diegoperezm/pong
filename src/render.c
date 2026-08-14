@@ -1,7 +1,5 @@
 #include "render.h"
-
 #include "raylib.h"
-
 
 static float
 lerp( float a, float b, float t) 
@@ -196,32 +194,19 @@ draw_powerups(
     const SimulationState *state
 )
 {
-    const PowerupPool *powerups =
-        &state->powerups;
+    const PowerupPool *powerups = &state->powerups;
 
-
-    for (int i = 0;
-         i < MAX_POWERUPS;
-         ++i) {
-
+    for (int i = 0; i < MAX_POWERUPS; ++i) {
         if (!powerups->active[i])
             continue;
 
-
         Color color;
 
-
-        if (powerups->type[i] ==
-            POWERUP_SPEED) {
-
+        if (powerups->type[i] == POWERUP_SPEED) {
             color = RED;
-        }
-
-        else {
-
+        } else {
             color = BLUE;
         }
-
 
         DrawRectangle(
             (int)powerups->x[i],
@@ -254,9 +239,7 @@ draw_score(
 
         300,
         30,
-
         40,
-
         WHITE
     );
 
@@ -269,9 +252,7 @@ draw_score(
 
         480,
         30,
-
         40,
-
         WHITE
     );
 }
@@ -304,7 +285,7 @@ draw_title(void)
 }
 
 
-static void
+static void 
 draw_pause(void)
 {
     DrawText(
@@ -318,15 +299,9 @@ draw_pause(void)
 
 
 static void
-draw_game_over(
-    const SimulationState *state
-)
+draw_game_over( const SimulationState *state)
 {
-    const char *text =
-        state->winner == 1
-            ? "YOU WIN"
-            : "YOU LOSE";
-
+    const char *text = state->winner == 1 ? "YOU WIN" : "YOU LOSE";
 
     DrawText(
         text,
@@ -368,32 +343,23 @@ draw_game_over(
 
 void
 render_game(
-    const SimulationState *state,
-    const RenderSnapshot *previous,
-    const RenderSnapshot *current,
+    const SimulationState* state,
+    const RenderSnapshot*  previous,
+    const RenderSnapshot*  current,
     float alpha
 )
 {
     BeginDrawing();
-
     ClearBackground(BLACK);
 
-
     switch (state->mode) {
-
         case GAME_TITLE:
-
             draw_title();
-
             break;
-
 
         case GAME_PLAYING:
-
             draw_court();
-
             draw_powerups(state);
-
             draw_paddles(
                 state,
                 previous,
@@ -408,18 +374,12 @@ render_game(
             );
 
             draw_particles(state);
-
             draw_score(state);
-
             break;
-
 
         case GAME_PAUSED:
-
             draw_court();
-
             draw_powerups(state);
-
             draw_paddles(
                 state,
                 previous,
@@ -434,21 +394,14 @@ render_game(
             );
 
             draw_particles(state);
-
             draw_score(state);
-
             draw_pause();
-
             break;
-
 
         case GAME_OVER:
-
             draw_game_over(state);
-
             break;
     }
-
 
     EndDrawing();
 }

@@ -11,9 +11,7 @@ paddle_clamp(Paddle* paddle)
     if (paddle->y < COURT_TOP)
         paddle->y = COURT_TOP;
 
-
     float max_y = COURT_BOTTOM - paddle->height;
-
 
     if (paddle->y > max_y)
         paddle->y = max_y;
@@ -113,7 +111,7 @@ enemy_system(
 static void
 ball_movement_system( SimulationState *state, float dt)
 {
-    BallPool *balls = &state->balls;
+    BallPool* balls = &state->balls;
 
     for (int i = 0; i < MAX_BALLS; ++i) {
         if (!balls->active[i])
