@@ -49,6 +49,7 @@ add_executable(
     src/collision.c
     src/entities.c
     src/render.c
+    src/log.c
     src/debug.c
 )
 

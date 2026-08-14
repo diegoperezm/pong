@@ -1,7 +1,7 @@
 #include "collision.h"
 #include "entities.h"
 #include <math.h>
-#include <stdio.h>
+#include "log.h"
 
 int
 rectangles_overlap(
@@ -46,14 +46,13 @@ ball_wall_collision(
         if (balls->y[i] <= COURT_TOP) {
             balls->y[i] = COURT_TOP;
             balls->vy[i] = fabsf( balls->vy[i]);
-/*
+
             particles_spawn(
                 &state->particles,
                 balls->x[i],
                 balls->y[i],
                 4
             );
-*/
         }
 
 
@@ -61,14 +60,12 @@ ball_wall_collision(
             balls->y[i] = COURT_BOTTOM - BALL_SIZE;
             balls->vy[i] = -fabsf( balls->vy[i]);
 
-/*
             particles_spawn(
                 &state->particles,
                 balls->x[i],
                 balls->y[i],
                 4
             );
-*/
         }
     }
 }
@@ -99,6 +96,12 @@ bounce_ball(
     float offset =
         ball_center -
         paddle_center;
+
+    LOG_COLLISION(
+    "ball=%d bounce: offset=%.2f speed=%.2f",
+    ball,
+    offset,
+    balls->speed[ball]);
 
     /*
      * Increase speed.
@@ -150,14 +153,20 @@ bounce_ball(
     balls->vy[ball] =
         vertical *
         balls->speed[ball];
-/*
+
+    LOG_COLLISION(
+      "ball=%d new velocity: vx=%.2f vy=%.2f",
+      ball,
+      balls->vx[ball],
+      balls->vy[ball]
+    );
+
     particles_spawn(
         &state->particles,
         balls->x[ball],
         balls->y[ball],
         8
     );
-*/
 }
 
 
@@ -190,6 +199,9 @@ ball_paddle_collision(SimulationState *state)
                     state->player.x +
                     state->player.width;
 
+                LOG_COLLISION(
+                 "ball=%d hit player paddle",
+                 i);
 
                 bounce_ball(
                     state,
@@ -218,7 +230,6 @@ ball_paddle_collision(SimulationState *state)
 
                 balls->x[i] = state->enemy.x - BALL_SIZE;
 
-//                printf("bounce ball");
                 bounce_ball(
                     state,
                     i,

@@ -7,6 +7,7 @@
 #include "game.h"
 #include "render.h"
 #include "debug.h"
+#include "log.h"
 
 int
 main(void)
@@ -17,7 +18,17 @@ main(void)
     DebugState debug;
     SimulationState state;
     game_init(&state);
+    log_init();
     debug_init(&debug);
+
+    log_set_enabled(LOG_GAME, 1);
+    log_set_enabled(LOG_COLLISION, 1);
+    log_set_enabled(LOG_ENTITY, 1);
+    
+    log_set_enabled(LOG_AI, 0);
+    log_set_enabled(LOG_INPUT, 0);
+    log_set_enabled(LOG_SIMULATION, 0);
+    log_set_enabled(LOG_RENDER, 0);
 
     /*
      * Two small render snapshots.

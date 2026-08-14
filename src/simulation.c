@@ -1,10 +1,9 @@
 #include "simulation.h"
-
 #include "collision.h"
 #include "entities.h"
-
 #include "raylib.h"
 #include <stdio.h> 
+#include "log.h"
 
 static void
 paddle_clamp(Paddle* paddle)
@@ -84,15 +83,25 @@ enemy_system(
 
 
     if (ball_y < paddle_y) {
- //       printf("ball_y < paddle_y\n");
         state->enemy.y -= AI_SPEED * dt;
 
     } else if (ball_y > paddle_y) {
- //       printf("ball_y > paddle_y\n");
         state->enemy.y += AI_SPEED * dt;
     }
+    LOG_AI(
+      "target ball=%d x=%.1f y=%.1f",
+      target,
+      state->balls.x[target],
+      state->balls.y[target]
+    );
 
-//    paddle_clamp(&state->enemy);
+    LOG_AI(
+      "paddle_y=%.1f ball_y=%.1f",
+      paddle_y,
+      ball_y
+    );
+
+    paddle_clamp(&state->enemy);
 }
 
 

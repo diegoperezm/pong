@@ -1,8 +1,7 @@
 #include "game.h"
-
 #include "entities.h"
 #include "simulation.h"
-
+#include "log.h"
 
 static void
 reset_paddles( SimulationState *state)
@@ -61,7 +60,9 @@ game_start(SimulationState *state)
         INITIAL_BALL_SPEED, 
 	100.0f
     );
+    LOG_GAME("game started");
 }
+
 
 
 void

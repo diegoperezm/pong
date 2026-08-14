@@ -1,8 +1,7 @@
 #include "entities.h"
-
 #include "raylib.h"
-
 #include <math.h>
+#include "log.h"
 
 
 /* ============================================================
@@ -50,9 +49,21 @@ ball_create(
 
         balls->speed[i] = sqrtf( vx * vx + vy * vy);
 
+
+        LOG_ENTITY(
+          "ball created: slot=%d x=%.1f y=%.1f vx=%.1f vy=%.1f",
+          i,
+          x,
+          y,
+          vx,
+          vy
+        );
+
+
         return i;
     }
 
+    LOG_ENTITY("ball creation failed: pool full");
     return -1;
 }
 
