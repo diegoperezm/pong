@@ -81,86 +81,65 @@ ball_wall_collision(
 static void
 bounce_ball(
     SimulationState *state,
-    int ball,
+    EntityHandle handle,
     const Paddle *paddle
 )
 {
     BallPool *balls = &state->balls;
 
-    float paddle_center =
-        paddle->y +
-        paddle->height / 2.0f;
+    if (!ball_is_valid(balls, handle))
+        return;
 
-    float ball_center =
-        balls->y[ball] +
-        BALL_SIZE / 2.0f;
+    uint32_t ball = handle.index;
 
-    float offset =
-        ball_center -
-        paddle_center;
+    float paddle_center = paddle->y + paddle->height / 2.0f;
+    float ball_center   = balls->y[ball] + BALL_SIZE / 2.0f;
+    float offset        = ball_center - paddle_center;
 
-    LOG_COLLISION(
-    "ball=%d bounce: offset=%.2f speed=%.2f",
-    ball,
-    offset,
-    balls->speed[ball]);
+    // Normalize hit offset between -1.0 and 1.0 based on half paddle height
+    float normalized_offset = offset / (paddle->height / 2.0f);
+    if (normalized_offset < -1.0f) normalized_offset = -1.0f;
+    if (normalized_offset >  1.0f) normalized_offset =  1.0f;
 
     /*
-     * Increase speed.
+     * Increase speed on paddle bounce.
      */
     balls->speed[ball] += 20.0f;
-
     if (balls->speed[ball] > MAX_BALL_SPEED) {
-        balls->speed[ball] =
-            MAX_BALL_SPEED;
+        balls->speed[ball] = MAX_BALL_SPEED;
     }
 
     /*
      * Reverse horizontal direction.
      */
-    float horizontal =
-        balls->vx[ball] < 0.0f
-            ? 1.0f
-            : -1.0f;
+    float horizontal = (balls->vx[ball] < 0.0f) ? 1.0f : -1.0f;
 
     /*
-     * Vertical velocity is determined
-     * by where the ball hit the paddle.
+     * Limit maximum deflection angle (e.g. max 60 degrees vertical influence).
      */
-    float vertical =
-        offset * 7.0f;
+    float vertical = normalized_offset * 1.5f;
 
     /*
-     * Normalize the direction.
+     * Normalize direction vector properly.
      */
-    float length =
-        sqrtf(
-            horizontal * horizontal +
-            vertical * vertical
-        );
-
+    float length = sqrtf(horizontal * horizontal + vertical * vertical);
     if (length > 0.0f) {
-
         horizontal /= length;
         vertical   /= length;
     }
 
     /*
-     * Apply speed.
+     * Apply new velocities.
      */
-    balls->vx[ball] =
-        horizontal *
-        balls->speed[ball];
-
-    balls->vy[ball] =
-        vertical *
-        balls->speed[ball];
+    balls->vx[ball] = horizontal * balls->speed[ball];
+    balls->vy[ball] = vertical   * balls->speed[ball];
 
     LOG_COLLISION(
-      "ball=%d new velocity: vx=%.2f vy=%.2f",
-      ball,
-      balls->vx[ball],
-      balls->vy[ball]
+        "ball=%u bounce: vx=%.2f vy=%.2f speed=%.2f",
+        ball,
+        balls->vx[ball],
+        balls->vy[ball],
+        balls->speed[ball]
     );
 
     particles_spawn(
@@ -170,6 +149,7 @@ bounce_ball(
         8
     );
 }
+
 
 
 static void
@@ -213,7 +193,7 @@ ball_paddle_collision(SimulationState *state)
 
                 bounce_ball(
                     state,
-                    i,
+                    handle,
                     &state->player
                 );
             }
@@ -240,7 +220,7 @@ ball_paddle_collision(SimulationState *state)
 
                 bounce_ball(
                     state,
-                    i,
+                    handle,
                     &state->enemy
                 );
             }
