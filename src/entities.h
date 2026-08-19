@@ -8,7 +8,7 @@
  */
 void balls_clear(BallPool *balls);
 
-int ball_create(
+EntityHandle ball_create(
     BallPool *balls,
     float x,
     float y,
@@ -16,9 +16,15 @@ int ball_create(
     float vy
 );
 
+bool ball_is_valid(
+  const BallPool* balls,
+  EntityHandle handle
+);
+
+
 void ball_destroy(
-    BallPool *balls,
-    int index
+    BallPool*    balls,
+    EntityHandle index
 );
 
 

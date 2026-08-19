@@ -143,16 +143,16 @@ main(void)
             alpha
         );
 
-         debug_update(
-             &debug,
-             &state,
-             GetFrameTime()
-         );
+    //     debug_update(
+     //        &debug,
+      //       &state,
+       //      GetFrameTime()
+        // );
 
-         debug_draw(
-             &debug,
-             &state
-         );
+//         debug_draw(
+ //            &debug,
+  //           &state
+   //      );
     }
 
 

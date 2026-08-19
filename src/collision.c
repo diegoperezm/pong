@@ -36,22 +36,24 @@ ball_wall_collision(
 {
     BallPool *balls = &state->balls;
 
-
     for (int i = 0; i < MAX_BALLS; ++i) {
+      EntityHandle handle = {
+         .index      = (uint32_t)i,
+	 .generation = balls->slots[i].generation
+      };
 
-        if (!balls->active[i])
-            continue;
+      if(!ball_is_valid(balls,handle))
+         continue;
 
-
-        if (balls->y[i] <= COURT_TOP) {
+      if (balls->y[i] <= COURT_TOP) {
             balls->y[i] = COURT_TOP;
             balls->vy[i] = fabsf( balls->vy[i]);
 
-            particles_spawn(
-                &state->particles,
-                balls->x[i],
-                balls->y[i],
-                4
+          particles_spawn(
+            &state->particles,
+            balls->x[i],
+            balls->y[i],
+             4
             );
         }
 
@@ -176,7 +178,13 @@ ball_paddle_collision(SimulationState *state)
     BallPool *balls = &state->balls;
 
     for (int i = 0; i < MAX_BALLS; ++i) {
-        if (!balls->active[i])
+
+        EntityHandle handle = {
+            .index = (uint32_t)i,
+            .generation = balls->slots[i].generation
+        };
+
+        if (!ball_is_valid(balls, handle))
             continue;
 
         /*
@@ -241,6 +249,8 @@ ball_paddle_collision(SimulationState *state)
 }
 
 
+
+
 /* ------------------------------------------------------------
  * BALL / POWERUP
  * ------------------------------------------------------------
@@ -295,7 +305,7 @@ powerup_apply(
             /*
              * Create another ball.
              */
-            int new_ball =
+            EntityHandle new_ball =
                 ball_create(
                     balls,
 
@@ -327,7 +337,7 @@ powerup_apply(
     powerups->active[powerup] = 0;
 }
 
-
+/*
 static void
 powerup_collision(
     SimulationState *state
@@ -376,14 +386,15 @@ powerup_collision(
             );
 
 
-            /*
-             * One ball can consume
-             * this power-up.
-             */
+            
+           //   One ball can consume
+           //   this power-up.
+            
             break;
         }
     }
 }
+*/
 
 
 void

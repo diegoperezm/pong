@@ -1,6 +1,9 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #include "config.h"
 
 // Game Mode
@@ -38,16 +41,24 @@ typedef struct
   int score;
 } Paddle;
 
-/*
-  Ball pool.
-  Each slot represents one ball.
- 
-  The slot remains at the same index during
-  its lifetime.
- */
 typedef struct 
 {
-  int   active[MAX_BALLS];
+  uint32_t index;
+  uint32_t generation;
+} EntityHandle;
+
+#define INVALID_HANDLE ((EntityHandle){ .index=0, .generation=0})
+
+typedef struct 
+{
+ uint32_t generation;
+ bool active;
+} Slot;
+
+
+typedef struct 
+{
+  Slot  slots[MAX_BALLS];
   float x[MAX_BALLS];
   float y[MAX_BALLS];
   float vx[MAX_BALLS];
@@ -103,6 +114,7 @@ typedef struct
   float        game_time;
   Paddle       player;
   Paddle       enemy;
+  EntityHandle ai_target;
   BallPool     balls;
   ParticlePool particles;
   PowerupPool  powerups;
@@ -137,5 +149,6 @@ typedef struct {
   int particle_count;
   int powerup_count;
 } DebugState;
+
 
 #endif

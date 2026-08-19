@@ -1,9 +1,9 @@
 #include "simulation.h"
 #include "collision.h"
 #include "entities.h"
-#include "raylib.h"
-#include <stdio.h> 
-#include "log.h"
+//#include "raylib.h"
+//#include <stdio.h> 
+//#include "log.h"
 
 static void
 paddle_clamp(Paddle* paddle)
@@ -53,40 +53,42 @@ enemy_system(
 )
 {
 
-// The index of the ball the AI chooses.
-    int target = -1;
+  BallPool* balls = &state->balls;
 
-// The largest X coordinate we've seen.
-    float best_x = -100000.0f;
+  // check if existing target handle is still valid across frames
+  if(!ball_is_valid(balls, state->ai_target)) {
+     state->ai_target = INVALID_HANDLE;
+     float best_x = -100000.0f;
+     // find new ball
+     for(uint32_t i = 0; i < MAX_BALLS; ++i) {
+       if(!balls->slots[i].active) continue;
 
-    for (int i = 0; i < MAX_BALLS; ++i) {
-        if (!state->balls.active[i])
-            continue;
+       if(balls->x[i] > best_x) {
+         best_x = balls->x[i];
+         state->ai_target = (EntityHandle){
+		 .index = i,
+                 .generation = balls->slots[i].generation
+	 };
+       } 
+     }
 
-        if (state->balls.x[i] > best_x) {
-            best_x = state->balls.x[i];
-            target = i;
-        }
-    }
+  }
 
+// perform ai movements using safe handle lookup
+  if(!ball_is_valid(balls,state->ai_target)) return;
 
-    if (target < 0) {
-        printf("enemy_system var target:%d\n", target);
-        return;
-    }
+   uint32_t idx      = state->ai_target.index;
+   float    ball_y   = balls->y[idx] + BALL_SIZE / 2.0f; 
+   float    paddle_y = state->enemy.y + state->enemy.height / 2.0f;  
 
+   if(ball_y < paddle_y) {
+     state->enemy.y -= AI_SPEED * dt;
+   } else if (ball_y > paddle_y) {
+     state->enemy.y += AI_SPEED * dt;
+   }
 
-    float ball_y   = state->balls.y[target] + BALL_SIZE / 2.0f;
-    float paddle_y = state->enemy.y + state->enemy.height / 2.0f;
-
-
-    if (ball_y < paddle_y) {
-        state->enemy.y -= AI_SPEED * dt;
-
-    } else if (ball_y > paddle_y) {
-        state->enemy.y += AI_SPEED * dt;
-    }
-    LOG_AI(
+   /*
+   LOG_AI(
       "target ball=%d x=%.1f y=%.1f",
       target,
       state->balls.x[target],
@@ -98,7 +100,7 @@ enemy_system(
       paddle_y,
       ball_y
     );
-
+    */
     paddle_clamp(&state->enemy);
 }
 
@@ -111,10 +113,15 @@ enemy_system(
 static void
 ball_movement_system( SimulationState *state, float dt)
 {
-    BallPool* balls = &state->balls;
+    BallPool *balls = &state->balls;
 
     for (int i = 0; i < MAX_BALLS; ++i) {
-        if (!balls->active[i])
+        EntityHandle handle = {
+            .index = (uint32_t)i,
+            .generation = balls->slots[i].generation
+        };
+
+        if (!ball_is_valid(balls, handle))
             continue;
 
         balls->x[i] += balls->vx[i] * dt;
@@ -128,96 +135,27 @@ ball_movement_system( SimulationState *state, float dt)
  * ------------------------------------------------------------
  */
 
-static void
-scoring_system(
-    SimulationState *state
-)
-{
+static void 
+scoring_system(SimulationState *state) {
     BallPool *balls = &state->balls;
-    int active_balls = 0;
 
-    for (int i = 0; i < MAX_BALLS; ++i) {
+    for (uint32_t i = 0; i < MAX_BALLS; ++i) {
+        if (!balls->slots[i].active) continue;
 
-        if (!balls->active[i])
-            continue;
+        EntityHandle handle = {
+            .index = i,
+            .generation = balls->slots[i].generation
+        };
 
-        ++active_balls;
-
-
-        /*
-         * Enemy scores.
-         */
         if (balls->x[i] < COURT_LEFT - BALL_SIZE) {
-
             state->enemy.score++;
-            particles_spawn(
-                &state->particles,
-                balls->x[i],
-                balls->y[i],
-                20
-            );
-
-
-            ball_destroy(balls, i);
-        }
-
-
-        /*
-         * Player scores.
-         */
-        else if (balls->x[i] > COURT_RIGHT) {
+            particles_spawn(&state->particles, balls->x[i], balls->y[i], 20);
+            ball_destroy(balls, handle); // Safely invalidates AI/Render handles
+        } else if (balls->x[i] > COURT_RIGHT) {
             state->player.score++;
-
-            particles_spawn(
-                &state->particles,
-                balls->x[i],
-                balls->y[i],
-                20
-            );
-
-            ball_destroy(balls, i);
+            particles_spawn(&state->particles, balls->x[i], balls->y[i], 20);
+            ball_destroy(balls, handle);
         }
-    }
-
-
-    if (state->player.score >= WINNING_SCORE) {
-
-        state->winner = 1;
-        state->mode = GAME_OVER;
-        return;
-    }
-
-
-    if (state->enemy.score >= WINNING_SCORE) {
-        state->winner = 2;
-        state->mode = GAME_OVER;
-        return;
-    }
-
-    /*
-     * Count again after removals.
-     */
-    active_balls = 0;
-
-    for (int i = 0; i < MAX_BALLS; ++i) {
-        if (balls->active[i])
-            ++active_balls;
-    }
-
-
-    /*
-     * Guarantee at least one ball.
-     */
-    if (active_balls == 0) {
-        float direction = GetRandomValue(0, 1) ? 1.0f : -1.0f;
-
-        ball_create(
-            balls,
-            SCREEN_WIDTH / 2.0f,
-            SCREEN_HEIGHT / 2.0f,
-            INITIAL_BALL_SPEED * direction,
-            (float)GetRandomValue(-100, 100)
-        );
     }
 }
 

@@ -35,7 +35,6 @@ game_init(SimulationState *state)
     powerups_clear(&state->powerups);
 }
 
-
 void
 game_start(SimulationState *state)
 {
@@ -48,17 +47,18 @@ game_start(SimulationState *state)
     reset_paddles(state);
     balls_clear(&state->balls);
     particles_clear(&state->particles);
-//    powerups_clear(&state->powerups);
 
     state->powerup_timer = POWERUP_INTERVAL;
 
-    ball_create(
+    EntityHandle initial_ball = ball_create(
         &state->balls,
         SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
         SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
         INITIAL_BALL_SPEED, 
-	100.0f
+        100.0f
     );
+    (void)initial_ball;
+
     LOG_GAME("game started");
 }
 
@@ -122,8 +122,20 @@ game_make_render_snapshot(
 
 
     for (int i = 0; i < MAX_BALLS; ++i) {
-        snapshot->ball_active[i] = state->balls.active[i];
-        snapshot->ball_x[i]      = state->balls.x[i];
-        snapshot->ball_y[i] = state->balls.y[i];
+        EntityHandle handle = {
+          .index = (uint32_t)i,
+	  .generation = state->balls.slots[i].generation
+	};
+
+	bool is_active = ball_is_valid(&state->balls, handle);
+        snapshot->ball_active[i] = is_active;
+
+	if(is_active) {
+           snapshot->ball_x[i] = state->balls.x[i];
+           snapshot->ball_y[i] = state->balls.y[i];
+	} else {
+           snapshot->ball_x[i] = 0.0f;
+           snapshot->ball_y[i] = 0.0f; 
+	}
     }
 }

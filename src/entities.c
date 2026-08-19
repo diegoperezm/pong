@@ -8,14 +8,17 @@
  * BALLS
  * ============================================================
  */
-
 void
 balls_clear(
     BallPool* balls
 )
 {
     for (int i = 0; i < MAX_BALLS; ++i) {
-        balls->active[i] = 0;
+        balls->slots[i].active = false;
+        // Start generation at 1 so handle generation 0 (INVALID_HANDLE) never matches
+        if (balls->slots[i].generation == 0) {
+            balls->slots[i].generation = 1;
+        }
         balls->x[i]      = 0.0f;
         balls->y[i]      = 0.0f;
         balls->vx[i]     = 0.0f;
@@ -25,7 +28,7 @@ balls_clear(
 }
 
 
-int
+EntityHandle
 ball_create(
     BallPool* balls,
     float     x,
@@ -34,12 +37,12 @@ ball_create(
     float     vy
 )
 {
-    for (int i = 0; i < MAX_BALLS; ++i) {
+    for (uint32_t i = 0; i < MAX_BALLS; ++i) {
 
-        if (balls->active[i])
+        if (balls->slots[i].active)
             continue;
 
-        balls->active[i] = 1;
+        balls->slots[i].active = true;
 
         balls->x[i] = x;
         balls->y[i] = y;
@@ -47,40 +50,50 @@ ball_create(
         balls->vx[i] = vx;
         balls->vy[i] = vy;
 
-        balls->speed[i] = sqrtf( vx * vx + vy * vy);
-
+        balls->speed[i] = sqrtf(vx * vx + vy * vy);
 
         LOG_ENTITY(
-          "ball created: slot=%d x=%.1f y=%.1f vx=%.1f vy=%.1f",
+          "ball created: slot=%u gen=%u x=%.1f y=%.1f",
           i,
+          balls->slots[i].generation,
           x,
-          y,
-          vx,
-          vy
+          y
         );
 
-
-        return i;
+        return (EntityHandle){
+            .index = i,
+            .generation = balls->slots[i].generation
+        };
     }
 
     LOG_ENTITY("ball creation failed: pool full");
-    return -1;
+    return INVALID_HANDLE;
+}
+
+
+bool 
+  ball_is_valid(
+    const BallPool* balls,
+    EntityHandle handle
+)
+{
+  if(handle.index >= MAX_BALLS) return false;
+  const Slot* slot = &balls->slots[handle.index];
+  return slot->active && (slot->generation == handle.generation);
 }
 
 
 void
 ball_destroy(
-    BallPool *balls,
-    int index
+    BallPool* balls,
+    EntityHandle handle
 )
 {
-    if (index < 0 ||
-        index >= MAX_BALLS) {
+   if(!ball_is_valid(balls, handle))  return;
 
-        return;
-    }
-
-    balls->active[index] = 0;
+   // incrementing generation invalidates all existing handles 
+   balls->slots[handle.index].generation++;
+   balls->slots[handle.index].active = false;
 }
 
 
