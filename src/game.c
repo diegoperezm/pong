@@ -95,6 +95,7 @@ game_update(
             if (input->pause)
                 state->mode = GAME_PLAYING;
             break;
+
         case GAME_OVER:
             if (input->start)
                 game_start(state);
