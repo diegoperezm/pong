@@ -150,8 +150,6 @@ bounce_ball(
     );
 }
 
-
-
 static void
 ball_paddle_collision(SimulationState *state)
 {

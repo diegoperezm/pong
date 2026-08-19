@@ -138,6 +138,7 @@ ball_movement_system( SimulationState *state, float dt)
 static void 
 scoring_system(SimulationState *state) {
     BallPool *balls = &state->balls;
+    int active_balls = 0;
 
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
         if (!balls->slots[i].active) continue;
@@ -155,7 +156,22 @@ scoring_system(SimulationState *state) {
             state->player.score++;
             particles_spawn(&state->particles, balls->x[i], balls->y[i], 20);
             ball_destroy(balls, handle);
-        }
+        } else {
+	    active_balls++;
+	}
+    }
+
+    /*
+     * If all balls are destroyed, respawn a new ball at center.
+     */
+    if (active_balls == 0) {
+        ball_create(
+          balls,
+          SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
+          SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
+          (state->player.score > state->enemy.score) ? -INITIAL_BALL_SPEED : INITIAL_BALL_SPEED,
+            100.0f
+        );
     }
 }
 
