@@ -9,129 +9,37 @@
  * ============================================================
  */
 
-static int
-log_enabled[LOG_COUNT];
+static uint32_t enabled_categories;
 
 
-/* ============================================================
- * CATEGORY NAMES
- * ============================================================
- */
-
-static const char *
-log_category_name(
-    LogCategory category
-)
+void log_init(void)
 {
-    switch (category) {
-
-        case LOG_GAME:
-            return "GAME";
-
-        case LOG_INPUT:
-            return "INPUT";
-
-        case LOG_SIMULATION:
-            return "SIMULATION";
-
-        case LOG_COLLISION:
-            return "COLLISION";
-
-        case LOG_ENTITY:
-            return "ENTITY";
-
-        case LOG_AI:
-            return "AI";
-
-        case LOG_RENDER:
-            return "RENDER";
-
-        case PONG_LOG_DEBUG:
-            return "DEBUG";
-
-        default:
-            return "UNKNOWN";
-    }
+ enabled_categories = 0;
+ 
 }
 
-
-/* ============================================================
- * INITIALIZATION
- * ============================================================
- */
-
-void
-log_init(void)
+void log_enable(LogCategory category)
 {
-    /*
-     * Disable everything by default.
-     */
-
-    for (int i = 0; i < LOG_COUNT; ++i) {
-        log_enabled[i] = 0;
-    }
-
-
-    /*
-     * Enable the categories that are
-     * useful during normal development.
-     */
-
-    log_enabled[LOG_GAME] = 1;
-    log_enabled[LOG_COLLISION] = 1;
-    log_enabled[LOG_ENTITY] = 1;
-    log_enabled[LOG_AI] = 1;
+  enabled_categories |= (1u << category);
 }
 
-
-/* ============================================================
- * ENABLE/DISABLE
- * ============================================================
- */
-
-void
-log_set_enabled(
-    LogCategory category,
-    int enabled
-)
+void log_disable(LogCategory category)
 {
-    if (category < 0 || category >= LOG_COUNT) {
-        return;
-    }
-
-    log_enabled[category] = enabled != 0; 
+  enabled_categories &= ~(1u << category);
 }
 
-
-/* ============================================================
- * QUERY
- * ============================================================
- */
-
-int
-log_is_enabled(
-    LogCategory category
-)
+int log_is_enabled(LogCategory category)
 {
-    if (category < 0 || category >= LOG_COUNT) {
-        return 0;
-    }
-
-    return log_enabled[category];
+  return  (enabled_categories & (1u << category)) != 0; 
 }
 
-
-/* ============================================================
- * LOG MESSAGE
- * ============================================================
- */
 
 void
 log_message(
     LogCategory category,
-    const char *file,
-    int line,
-    const char *format,
+    const char* file,
+    int         line,
+    const char* format,
     ...
 )
 {
@@ -141,7 +49,7 @@ log_message(
 
     printf(
         "[%s] %s:%d: ",
-        log_category_name(category),
+        log_category_name[category],
         file,
         line
     );

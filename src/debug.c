@@ -1,6 +1,7 @@
+#include "entities.h"
 #include "debug.h"
-//#include "raylib.h"
-//#include <stdio.h>
+#include "raylib.h"
+#include <stdio.h>
 
 
 /* ============================================================
@@ -30,41 +31,39 @@ debug_init(
     DebugState *debug
 )
 {
-    debug->enabled = 0;
+    debug->enabled         = 0;
+
     debug->show_collisions = 0;
-    debug->show_velocity = 0;
+    debug->show_velocity   = 0;
+    debug->frame_time      = 0.0f;
+    debug->fps             = 0.0f;
 
-    debug->frame_time = 0.0f;
-    debug->fps = 0.0f;
-
-    debug->ball_count = 0;
-    debug->particle_count = 0;
-    debug->powerup_count = 0;
+    debug->ball_count      = 0;
+    debug->particle_count  = 0;
+    debug->powerup_count   = 0;
 }
-
-
-
 
 /* ============================================================
  * ENTITY COUNTERS
  * ============================================================
  */
-/*
+
 static int
 debug_count_balls(
     const SimulationState *state
 )
 {
+    const BallPool* balls = &state->balls; 
     int count = 0;
-
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
-
-        if (state->balls.active[i])
-            ++count;
+    for (int i = 0; i < MAX_BALLS; ++i) {
+      EntityHandle handle = {
+        .index      = (uint32_t)i,
+	.generation = balls->slots[i].generation
+      };
+      if(ball_is_valid(balls,handle))
+	     count++; 
     }
-
+    
     return count;
 }
 
@@ -551,17 +550,12 @@ debug_draw(
  //
 
 void
-debug_draw_collisions(
-    const SimulationState *state
-)
+debug_draw_collisions(const SimulationState *state)
 {
     if (state == NULL)
         return;
 
-
     //  Player.
-     
-
     DrawRectangleLines(
         (int)state->player.x,
         (int)state->player.y,
@@ -572,8 +566,6 @@ debug_draw_collisions(
 
 
     //  Enemy.
-     
-
     DrawRectangleLines(
         (int)state->enemy.x,
         (int)state->enemy.y,
@@ -585,13 +577,11 @@ debug_draw_collisions(
 
    
     //  Balls.
-     
-
     for (int i = 0;
          i < MAX_BALLS;
          ++i) {
 
-        if (!state->balls.active[i])
+        if (!state->balls.slots[i].active)
             continue;
 
 
@@ -620,11 +610,9 @@ debug_draw_velocity(
         return;
 
 
-    for (int i = 0;
-         i < MAX_BALLS;
-         ++i) {
+    for (int i = 0; i < MAX_BALLS; ++i) {
 
-        if (!state->balls.active[i])
+        if (!state->balls.slots[i].active)
             continue;
 
 
@@ -655,4 +643,4 @@ debug_draw_velocity(
         );
     }
 }
-*/
+

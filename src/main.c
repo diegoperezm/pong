@@ -21,14 +21,14 @@ main(void)
     log_init();
     debug_init(&debug);
 
-    log_set_enabled(LOG_GAME, 1);
-    log_set_enabled(LOG_COLLISION, 1);
-    log_set_enabled(LOG_ENTITY, 1);
+    log_enable(PONG_LOG_GAME);
+    log_enable(PONG_LOG_COLLISION);
+    log_enable(PONG_LOG_ENTITY);
     
-    log_set_enabled(LOG_AI, 0);
-    log_set_enabled(LOG_INPUT, 0);
-    log_set_enabled(LOG_SIMULATION, 0);
-    log_set_enabled(LOG_RENDER, 0);
+    log_enable(PONG_LOG_AI);
+    log_enable(PONG_LOG_INPUT);
+    log_enable(PONG_LOG_SIMULATION);
+    log_enable(PONG_LOG_RENDER);
 
     /*
      * Two small render snapshots.
@@ -143,16 +143,16 @@ main(void)
             alpha
         );
 
-    //     debug_update(
-     //        &debug,
-      //       &state,
-       //      GetFrameTime()
-        // );
+        debug_update(
+          &debug,
+          &state,
+          GetFrameTime()
+        );
 
-//         debug_draw(
- //            &debug,
-  //           &state
-   //      );
+        debug_draw(
+          &debug,
+          &state
+        );
     }
 
 
