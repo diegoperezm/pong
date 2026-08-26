@@ -13,7 +13,7 @@
 #define DEBUG_LINE_HEIGHT     20
 
 #define DEBUG_PANEL_X         10
-#define DEBUG_PANEL_Y         10
+#define DEBUG_PANEL_Y         450
 
 #define DEBUG_PANEL_WIDTH     300
 #define DEBUG_PANEL_HEIGHT    350
@@ -208,21 +208,14 @@ debug_draw(
     const SimulationState *state
 )
 {
-    if (debug == NULL ||
-        state == NULL) {
-
+    if (debug == NULL || state == NULL) {
         return;
     }
-
 
     if (!debug->enabled)
         return;
 
-
-    
-      //Panel background.
-     
-
+   //Panel background.
     DrawRectangle(
         DEBUG_PANEL_X,
         DEBUG_PANEL_Y,
@@ -231,11 +224,7 @@ debug_draw(
         Fade(BLACK, 0.80f)
     );
 
-
-    //
-     // Panel border.
-     //
-
+    // Panel border.
     DrawRectangleLines(
         DEBUG_PANEL_X,
         DEBUG_PANEL_Y,
@@ -245,22 +234,15 @@ debug_draw(
     );
 
 
-    int x =
-        DEBUG_PANEL_X +
-        DEBUG_PADDING;
+    int x = DEBUG_PANEL_X + DEBUG_PADDING;
 
-    int y =
-        DEBUG_PANEL_Y +
-        DEBUG_PADDING;
-
-
+    int y = DEBUG_PANEL_Y + DEBUG_PADDING;
     char text[128];
 
 
     /// --------------------------------------------------------
-     // Header
-     // --------------------------------------------------------
-     ///
+    // Header
+    // --------------------------------------------------------
 
     debug_text(
         x,
@@ -272,9 +254,8 @@ debug_draw(
 
 
     // --------------------------------------------------------
-     // Frame
-     // --------------------------------------------------------
-     //
+    // Frame
+    // --------------------------------------------------------
 
     snprintf(
         text,
@@ -309,9 +290,8 @@ debug_draw(
 
 
     // --------------------------------------------------------
-     // Game
-     // --------------------------------------------------------
-     ///
+    // Game
+    // --------------------------------------------------------
 
     debug_text(
         x,
@@ -357,9 +337,8 @@ debug_draw(
 
 
     // --------------------------------------------------------
-     // Player
-     // --------------------------------------------------------
-     //
+    // Player
+    // --------------------------------------------------------
 
     debug_text(
         x,
@@ -418,11 +397,9 @@ debug_draw(
     y += DEBUG_LINE_HEIGHT;
 
 
-     //--------------------------------------------------------
-     // Enemy
-      //--------------------------------------------------------
-     ///
-
+    //--------------------------------------------------------
+    // Enemy
+    //--------------------------------------------------------
     debug_text(
         x,
         y,
@@ -481,9 +458,8 @@ debug_draw(
 
 
     // --------------------------------------------------------
-     // Entities
-     // --------------------------------------------------------
-     //
+    // Entities
+    // --------------------------------------------------------
 
     debug_text(
         x,
@@ -541,13 +517,16 @@ debug_draw(
         y,
         text
     );
+
+    debug_draw_collisions(state); 
+    debug_draw_velocity(state); 
+
 }
 
 
-// ============================================================
+ // ============================================================
  // COLLISION DEBUG DRAWING
  // ============================================================
- //
 
 void
 debug_draw_collisions(const SimulationState *state)
@@ -575,7 +554,6 @@ debug_draw_collisions(const SimulationState *state)
     );
 
 
-   
     //  Balls.
     for (int i = 0;
          i < MAX_BALLS;
@@ -597,42 +575,24 @@ debug_draw_collisions(const SimulationState *state)
 
 
  //============================================================
-  //VELOCITY DEBUG DRAWING
-  //============================================================
+ // VELOCITY DEBUG DRAWING
+ //============================================================
  
 
 void
-debug_draw_velocity(
-    const SimulationState *state
-)
+debug_draw_velocity(const SimulationState *state)
 {
     if (state == NULL)
         return;
 
-
     for (int i = 0; i < MAX_BALLS; ++i) {
-
         if (!state->balls.slots[i].active)
             continue;
 
-
-        float center_x =
-            state->balls.x[i] +
-            BALL_SIZE * 0.5f;
-
-        float center_y =
-            state->balls.y[i] +
-            BALL_SIZE * 0.5f;
-
-
-        float end_x =
-            center_x +
-            state->balls.vx[i] * 0.25f;
-
-        float end_y =
-            center_y +
-            state->balls.vy[i] * 0.25f;
-
+        float center_x = state->balls.x[i] + BALL_SIZE * 0.5f;
+        float center_y = state->balls.y[i] + BALL_SIZE * 0.5f;
+        float end_x    = center_x + state->balls.vx[i] * 0.5f;
+        float end_y    = center_y + state->balls.vy[i] * 0.5f;
 
         DrawLine(
             (int)center_x,

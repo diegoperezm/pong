@@ -47,13 +47,28 @@ void log_message(
   ...
 );
 
-#define LOG_GAME(...)       log_message(PONG_LOG_GAME, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_INPUT(...)      log_message(PONG_LOG_INPUT, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_SIMULATION(...) log_message(PONG_LOG_SIMULATION, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_COLLISION(...)  log_message(PONG_LOG_COLLISION, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_ENTITY(...)     log_message(PONG_LOG_ENTITY, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_AI(...)         log_message(PONG_LOG_AI, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_RENDER(...)     log_message(PONG_LOG_RENDER, __FILE__, __LINE__, __VA_ARGS__)
-#define LOG_DEBUG(...)      log_message(PONG_LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+#define LOG_GAME(...)      \
+ log_message(PONG_LOG_GAME, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_INPUT(...)      \
+ log_message(PONG_LOG_INPUT, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_SIMULATION(...) \
+ log_message(PONG_LOG_SIMULATION, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_COLLISION(...)  \
+ log_message(PONG_LOG_COLLISION, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_ENTITY(...)     \
+ log_message(PONG_LOG_ENTITY, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_AI(...)         \
+ log_message(PONG_LOG_AI, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_RENDER(...)     \
+ log_message(PONG_LOG_RENDER, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_DEBUG(...)      \
+ log_message(PONG_LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
 
 #endif

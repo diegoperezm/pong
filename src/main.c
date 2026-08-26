@@ -18,9 +18,10 @@ main(void)
     DebugState debug;
     SimulationState state;
     game_init(&state);
-    log_init();
+
     debug_init(&debug);
 
+    log_init();
     log_enable(PONG_LOG_GAME);
     log_enable(PONG_LOG_COLLISION);
     log_enable(PONG_LOG_ENTITY);
@@ -30,15 +31,8 @@ main(void)
     log_enable(PONG_LOG_SIMULATION);
     log_enable(PONG_LOG_RENDER);
 
-    /*
-     * Two small render snapshots.
-     *
-     * These are NOT copies of the whole
-     * simulation state.
-     */
     RenderSnapshot previous;
     RenderSnapshot current;
-
 
     game_make_render_snapshot(
         &state,
@@ -153,8 +147,8 @@ main(void)
           &debug,
           &state
         );
+    
     }
-
 
     CloseWindow();
     return 0;

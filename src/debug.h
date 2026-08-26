@@ -3,9 +3,7 @@
 
 #include "types.h"
 
-void debug_init(
-    DebugState *debug
-);
+void debug_init(DebugState *debug);
 
 void debug_update(
     DebugState *debug,
@@ -18,13 +16,8 @@ void debug_draw(
     const SimulationState *state
 );
 
-void debug_draw_collisions(
-    const SimulationState *state
-);
-
-void debug_draw_velocity(
-    const SimulationState *state
-);
+void debug_draw_collisions(const SimulationState *state);
+void debug_draw_velocity(const SimulationState *state);
 
 #endif
 
