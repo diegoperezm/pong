@@ -35,6 +35,13 @@ set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(third_party/raylib)
 
+# Box2D
+set(BOX2D_SAMPLES OFF CACHE BOOL "" FORCE)
+set(BOX2D_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+set(BOX2D_BENCHMARKS OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(third_party/box2d)
+
 # Executable
 ###############################################################################
 
@@ -71,6 +78,7 @@ target_link_libraries(
     pong
     PRIVATE
         raylib
+        box2d
 )
 
 # Output

@@ -5,8 +5,7 @@ collision.c
 #include <math.h>
 #include "log.h"
 
-int
-rectangles_overlap(
+int rectangles_overlap(
     float ax,
     float ay,
     float aw,
@@ -388,7 +387,7 @@ collision_update(
 }
 
 
-debug.c
+file: debug.c
 
 #include "debug.h"
 //#include "raylib.h"
@@ -1050,7 +1049,7 @@ debug_draw_velocity(
 */
 
 
-entities.c
+file: entities.c
 
 #include "entities.h"
 #include "raylib.h"
@@ -1063,9 +1062,7 @@ entities.c
  * ============================================================
  */
 void
-balls_clear(
-    BallPool* balls
-)
+balls_clear(BallPool* balls)
 {
     for (int i = 0; i < MAX_BALLS; ++i) {
         balls->slots[i].active = false;
