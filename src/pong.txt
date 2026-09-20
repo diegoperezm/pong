@@ -1025,49 +1025,64 @@ simulation_init(state);
 void
 game_start(SimulationState *state)
 {
-state->mode = GAME_PLAYING;
+    state->mode = GAME_PLAYING;
 
-state->game_time = 0.0f;
-state->winner = 0;
+    state->game_time = 0.0f;
+    state->winner = 0;
 
-reset_paddles(state);
+    reset_paddles(state);
 
-balls_clear(&state->balls);
-particles_clear(&state->particles);
-powerups_clear(&state->powerups);
+    balls_clear(&state->balls);
+    particles_clear(&state->particles);
+    powerups_clear(&state->powerups);
 
-state->powerup_timer = 0.0f;
+    state->powerup_timer = 0.0f;
 
-ball_create(
-    &state->balls,
-    SCREEN_WIDTH / 2.0f,
-    SCREEN_HEIGHT / 2.0f,
-    INITIAL_BALL_SPEED,
-    100.0f
-);
+    /*
+     * Remove any existing Box2D bodies from the previous game.
+     */
+    simulation_reset(state);
 
-simulation_reset(state);
-
+    /*
+     * Create the first ball.
+     */
+    ball_create(
+        &state->balls,
+        SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
+        SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
+        INITIAL_BALL_SPEED,
+        100.0f
+    );
 }
+
+
+
+
 
 void
 game_update(
-SimulationState *state,
-const GameInput *input,
-float dt
+    SimulationState *state,
+    const GameInput *input,
+    float dt
 )
 {
-if (state->mode != GAME_PLAYING)
-return;
+    if (state->mode == GAME_TITLE) {
+        if (input->start)
+            game_start(state);
 
-state->game_time += dt;
+        return;
+    }
 
-simulation_update(
-    state,
-    input,
-    dt
-);
+    if (state->mode != GAME_PLAYING)
+        return;
 
+    state->game_time += dt;
+
+    simulation_update(
+        state,
+        input,
+        dt
+    );
 }
 
 void
@@ -1336,121 +1351,129 @@ render_shutdown(void)
 
 void
 render_frame(
-const RenderSnapshot *previous,
-const RenderSnapshot *current,
-float alpha
+    const RenderSnapshot *previous,
+    const RenderSnapshot *current,
+    float alpha
 )
 {
-BeginDrawing();
+    BeginDrawing();
 
-ClearBackground(BLACK);
+    ClearBackground(BLACK);
 
-/*
- * Court.
- */
-DrawRectangleLines(
-    (int)COURT_LEFT,
-    (int)COURT_TOP,
-    (int)(COURT_RIGHT - COURT_LEFT),
-    (int)(COURT_BOTTOM - COURT_TOP),
-    WHITE
-);
+    /*
+     * Court.
+     */
+    DrawRectangleLines(
+        (int)COURT_LEFT,
+        (int)COURT_TOP,
+        (int)(COURT_RIGHT - COURT_LEFT),
+        (int)(COURT_BOTTOM - COURT_TOP),
+        WHITE
+    );
 
-/*
- * Center line.
- */
-DrawLine(
-    SCREEN_WIDTH / 2,
-    (int)COURT_TOP,
-    SCREEN_WIDTH / 2,
-    (int)COURT_BOTTOM,
-    WHITE
-);
+    /*
+     * Center line.
+     */
+    DrawLine(
+        SCREEN_WIDTH / 2,
+        (int)COURT_TOP,
+        SCREEN_WIDTH / 2,
+        (int)COURT_BOTTOM,
+        WHITE
+    );
 
-/*
- * Player paddle.
- */
-float player_x = lerp_float(
-    previous->player_x,
-    current->player_x,
-    alpha
-);
+    /*
+     * Player paddle.
+     */
+    float player_x = lerp_float(
+        previous->player_x,
+        current->player_x,
+        alpha
+    );
 
-float player_y = lerp_float(
-    previous->player_y,
-    current->player_y,
-    alpha
-);
+    float player_y = lerp_float(
+        previous->player_y,
+        current->player_y,
+        alpha
+    );
 
-DrawRectangle(
-    (int)player_x,
-    (int)player_y,
-    (int)PADDLE_WIDTH,
-    (int)PADDLE_HEIGHT,
-    WHITE
-);
+    DrawRectangle(
+        (int)player_x,
+        (int)player_y,
+        (int)PADDLE_WIDTH,
+        (int)PADDLE_HEIGHT,
+        WHITE
+    );
 
-/*
- * Enemy paddle.
- */
-float enemy_x = lerp_float(
-    previous->enemy_x,
-    current->enemy_x,
-    alpha
-);
+    /*
+     * Enemy paddle.
+     */
+    float enemy_x = lerp_float(
+        previous->enemy_x,
+        current->enemy_x,
+        alpha
+    );
 
-float enemy_y = lerp_float(
-    previous->enemy_y,
-    current->enemy_y,
-    alpha
-);
+    float enemy_y = lerp_float(
+        previous->enemy_y,
+        current->enemy_y,
+        alpha
+    );
 
-DrawRectangle(
-    (int)enemy_x,
-    (int)enemy_y,
-    (int)PADDLE_WIDTH,
-    (int)PADDLE_HEIGHT,
-    WHITE
-);
+    DrawRectangle(
+        (int)enemy_x,
+        (int)enemy_y,
+        (int)PADDLE_WIDTH,
+        (int)PADDLE_HEIGHT,
+        WHITE
+    );
 
-/*
- * Balls.
- *
- * Ball slots are stable, so the snapshot can be interpolated
- * by slot/index as long as both snapshots preserve slot identity.
- */
-int ball_count = current->ball_count;
+    /*
+     * Balls.
+     *
+     * Ball slots are stable. Iterate over the entire pool
+     * and use the active flag to determine which slots exist.
+     */
+    for (int i = 0; i < MAX_BALLS; ++i) {
 
-for (int i = 0; i < ball_count; ++i) {
-    float x = current->balls[i].x;
-    float y = current->balls[i].y;
+        if (!current->balls[i].active)
+            continue;
 
-    if (i < previous->ball_count) {
-        x = lerp_float(
-            previous->balls[i].x,
-            current->balls[i].x,
-            alpha
-        );
+        float x = current->balls[i].x;
+        float y = current->balls[i].y;
 
-        y = lerp_float(
-            previous->balls[i].y,
-            current->balls[i].y,
-            alpha
+        /*
+         * Interpolate only when this same slot was active
+         * in the previous snapshot.
+         */
+        if (previous->balls[i].active) {
+
+            x = lerp_float(
+                previous->balls[i].x,
+                current->balls[i].x,
+                alpha
+            );
+
+            y = lerp_float(
+                previous->balls[i].y,
+                current->balls[i].y,
+                alpha
+            );
+        }
+
+        DrawRectangle(
+            (int)x,
+            (int)y,
+            (int)BALL_SIZE,
+            (int)BALL_SIZE,
+            WHITE
         );
     }
 
-    DrawRectangle(
-        (int)x,
-        (int)y,
-        (int)BALL_SIZE,
-        (int)BALL_SIZE,
-        WHITE
-    );
+    EndDrawing();
 }
 
-EndDrawing();
 
-}
 
 
 
