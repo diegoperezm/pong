@@ -1,156 +1,98 @@
 #include "raylib.h"
-#include <box2d/box2d.h>
 
-#include "config.h"
-#include "types.h"
-
-#include "input.h"
 #include "game.h"
+#include "input.h"
 #include "render.h"
-#include "debug.h"
-#include "log.h"
+#include "simulation.h"
+#include "types.h"
 
 int
 main(void)
 {
-    InitWindow( SCREEN_WIDTH, SCREEN_HEIGHT, "Pong");
-    SetTargetFPS(60);
+InitWindow(
+SCREEN_WIDTH,
+SCREEN_HEIGHT,
+"Pong"
+);
 
-    DebugState debug;
-    SimulationState state;
-    game_init(&state);
+SetTargetFPS(60);
 
-    debug_init(&debug);
+SimulationState state;
+GameInput input;
 
-    log_init();
-    log_enable(PONG_LOG_GAME);
-    log_enable(PONG_LOG_COLLISION);
-    log_enable(PONG_LOG_ENTITY);
-    
-    log_enable(PONG_LOG_AI);
-    log_enable(PONG_LOG_INPUT);
-    log_enable(PONG_LOG_SIMULATION);
-    log_enable(PONG_LOG_RENDER);
+RenderSnapshot previous = {0};
+RenderSnapshot current = {0};
 
-    RenderSnapshot previous;
-    RenderSnapshot current;
+game_init(&state);
 
-    game_make_render_snapshot(
-        &state,
-        &previous
-    );
+game_make_render_snapshot(
+    &state,
+    &previous
+);
 
-
-    current = previous;
-    GameInput input = {0};
-    double accumulator = 0.0;
-
-    while (!WindowShouldClose()) {
-
-        /*
-         * ----------------------------------------------------
-         * 1. Measure real time.
-         * ----------------------------------------------------
-         */
-
-        double frame_time = GetFrameTime();
+game_make_render_snapshot(
+    &state,
+    &current
+);
 
 
-        /*
-         * Prevent giant simulation
-         * steps after pauses/debugging.
-         */
-        if (frame_time > MAX_FRAME_TIME) {
-            frame_time = MAX_FRAME_TIME;
-        }
+double accumulator = 0.0;
 
-        /*
-         * ----------------------------------------------------
-         * 2. Sample platform input.
-         * ----------------------------------------------------
-         */
+while (!WindowShouldClose()) {
+    /*
+     * Input is sampled once per rendered frame.
+     */
+    input_sample(&input);
 
-        input_sample(&input);
-        accumulator += frame_time;
+    /*
+     * Accumulate real elapsed time.
+     */
+    double frame_time = GetFrameTime();
 
+    if (frame_time > MAX_FRAME_TIME)
+        frame_time = MAX_FRAME_TIME;
 
-        if (IsKeyPressed(KEY_F3)) {
-          debug.enabled = !debug.enabled;
-        }
+    accumulator += frame_time;
 
+    /*
+     * Fixed-timestep simulation.
+     */
+    while (accumulator >= SIM_DT) {
+        previous = current;
 
-        /*
-         * ----------------------------------------------------
-         * 3. Fixed timestep simulation.
-         * ----------------------------------------------------
-         */
-
-        while (accumulator >= SIM_DT) {
-
-            /*
-             * Current render state becomes
-             * previous render state.
-             */
-            previous = current;
-
-            /*
-             * Advance authoritative state.
-             */
-            game_update(
-                &state,
-                &input,
-                SIM_DT
-            );
-
-
-            /*
-             * Extract only render data.
-             */
-            game_make_render_snapshot(
-                &state,
-                &current
-            );
-
-
-            accumulator -= SIM_DT;
-        }
-
-
-        /*
-         * ----------------------------------------------------
-         * 4. Interpolation.
-         * ----------------------------------------------------
-         */
-
-        float alpha = (float)(accumulator/SIM_DT);
-
-
-        /*
-         * ----------------------------------------------------
-         * 5. Render.
-         * ----------------------------------------------------
-         */
-
-        render_game(
+        game_update(
             &state,
-            &previous,
-            &current,
-            alpha
+            &input,
+            (float)SIM_DT
         );
 
-        debug_update(
-          &debug,
-          &state,
-          GetFrameTime()
+        game_make_render_snapshot(
+            &state,
+            &current
         );
 
-        debug_draw(
-          &debug,
-          &state
-        );
-    
+        accumulator -= SIM_DT;
     }
 
-    CloseWindow();
-    return 0;
+    /*
+     * Interpolation factor between the previous and current
+     * simulation states.
+     */
+    float alpha =
+        (float)(accumulator / SIM_DT);
+
+    render_frame(
+        &previous,
+        &current,
+        alpha
+    );
 }
+
+simulation_shutdown();
+
+CloseWindow();
+
+return 0;
+
+}
+

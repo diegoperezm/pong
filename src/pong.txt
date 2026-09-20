@@ -1,0 +1,2254 @@
+collision.c
+
+#include "collision.h"
+#include "entities.h"
+#include <math.h>
+#include "log.h"
+
+void
+collision_update( SimulationState *state)
+{
+  (void)state;
+}
+
+
+debug.c
+
+#include "entities.h"
+#include "debug.h"
+#include "raylib.h"
+#include <stdio.h>
+
+
+/* ============================================================
+ * CONFIGURATION
+ * ============================================================
+ */
+
+#define DEBUG_FONT_SIZE       16
+#define DEBUG_LINE_HEIGHT     20
+
+#define DEBUG_PANEL_X         10
+#define DEBUG_PANEL_Y         450
+
+#define DEBUG_PANEL_WIDTH     300
+#define DEBUG_PANEL_HEIGHT    350
+
+#define DEBUG_PADDING         10
+
+
+/* ============================================================
+ * INITIALIZATION
+ * ============================================================
+ */
+
+void
+debug_init(
+    DebugState *debug
+)
+{
+    debug->enabled         = 0;
+
+    debug->show_collisions = 0;
+    debug->show_velocity   = 0;
+    debug->frame_time      = 0.0f;
+    debug->fps             = 0.0f;
+
+    debug->ball_count      = 0;
+    debug->particle_count  = 0;
+    debug->powerup_count   = 0;
+}
+
+/* ============================================================
+ * ENTITY COUNTERS
+ * ============================================================
+ */
+
+static int
+debug_count_balls(
+    const SimulationState *state
+)
+{
+    const BallPool* balls = &state->balls; 
+    int count = 0;
+    for (int i = 0; i < MAX_BALLS; ++i) {
+      EntityHandle handle = {
+        .index      = (uint32_t)i,
+	.generation = balls->slots[i].generation
+      };
+      if(ball_is_valid(balls,handle))
+	     count++; 
+    }
+    
+    return count;
+}
+
+
+static int
+debug_count_particles(
+    const SimulationState *state
+)
+{
+    int count = 0;
+
+    for (int i = 0;
+         i < MAX_PARTICLES;
+         ++i) {
+
+        if (state->particles.active[i])
+            ++count;
+    }
+
+    return count;
+}
+
+
+static int
+debug_count_powerups(
+    const SimulationState *state
+)
+{
+    int count = 0;
+
+    for (int i = 0;
+         i < MAX_POWERUPS;
+         ++i) {
+
+        if (state->powerups.active[i])
+            ++count;
+    }
+
+    return count;
+}
+
+
+ // UPDATE
+
+void
+debug_update(
+    DebugState *debug,
+    const SimulationState *state,
+    float frame_time
+)
+{
+    if (debug == NULL ||
+        state == NULL) {
+
+        return;
+    }
+
+
+    debug->frame_time =
+        frame_time;
+
+
+    if (frame_time > 0.0f) {
+
+        debug->fps =
+            1.0f / frame_time;
+
+    } else {
+
+        debug->fps = 0.0f;
+    }
+
+
+    debug->ball_count =
+        debug_count_balls(state);
+
+    debug->particle_count =
+        debug_count_particles(state);
+
+    debug->powerup_count =
+        debug_count_powerups(state);
+}
+
+
+ // TEXT
+
+static void
+debug_text(
+    int x,
+    int y,
+    const char *text
+)
+{
+    DrawText(
+        text,
+        x,
+        y,
+        DEBUG_FONT_SIZE,
+        RAYWHITE
+    );
+}
+
+
+
+ // GAME MODE
+
+
+
+static const char *
+debug_game_mode_name(
+    GameMode mode
+)
+{
+    switch (mode) {
+
+        case GAME_TITLE:
+            return "TITLE";
+
+        case GAME_PLAYING:
+            return "PLAYING";
+
+        case GAME_PAUSED:
+            return "PAUSED";
+
+        case GAME_OVER:
+            return "GAME OVER";
+
+        default:
+            return "UNKNOWN";
+    }
+}
+
+
+// ============================================================
+ // MAIN DEBUG OVERLAY
+ // ============================================================
+ ///
+
+void
+debug_draw(
+    const DebugState *debug,
+    const SimulationState *state
+)
+{
+    if (debug == NULL || state == NULL) {
+        return;
+    }
+
+    if (!debug->enabled)
+        return;
+
+   //Panel background.
+    DrawRectangle(
+        DEBUG_PANEL_X,
+        DEBUG_PANEL_Y,
+        DEBUG_PANEL_WIDTH,
+        DEBUG_PANEL_HEIGHT,
+        Fade(BLACK, 0.80f)
+    );
+
+    // Panel border.
+    DrawRectangleLines(
+        DEBUG_PANEL_X,
+        DEBUG_PANEL_Y,
+        DEBUG_PANEL_WIDTH,
+        DEBUG_PANEL_HEIGHT,
+        RAYWHITE
+    );
+
+
+    int x = DEBUG_PANEL_X + DEBUG_PADDING;
+
+    int y = DEBUG_PANEL_Y + DEBUG_PADDING;
+    char text[128];
+
+
+    /// --------------------------------------------------------
+    // Header
+    // --------------------------------------------------------
+
+    debug_text(
+        x,
+        y,
+        "DEBUG"
+    );
+
+    y += DEBUG_LINE_HEIGHT + 4;
+
+
+    // --------------------------------------------------------
+    // Frame
+    // --------------------------------------------------------
+
+    snprintf(
+        text,
+        sizeof(text),
+        "FPS: %.1f",
+        debug->fps
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "Frame: %.3f ms",
+        debug->frame_time * 1000.0f
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    // --------------------------------------------------------
+    // Game
+    // --------------------------------------------------------
+
+    debug_text(
+        x,
+        y,
+        "GAME"
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  Mode: %s",
+        debug_game_mode_name(
+            state->mode
+        )
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  Time: %.2f",
+        state->game_time
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    // --------------------------------------------------------
+    // Player
+    // --------------------------------------------------------
+
+    debug_text(
+        x,
+        y,
+        "PLAYER"
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  X: %.1f",
+        state->player.x
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  Y: %.1f",
+        state->player.y
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  Score: %d",
+        state->player.score
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    //--------------------------------------------------------
+    // Enemy
+    //--------------------------------------------------------
+    debug_text(
+        x,
+        y,
+        "ENEMY"
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  X: %.1f",
+        state->enemy.x
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  Y: %.1f",
+        state->enemy.y
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  Score: %d",
+        state->enemy.score
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    // --------------------------------------------------------
+    // Entities
+    // --------------------------------------------------------
+
+    debug_text(
+        x,
+        y,
+        "ENTITIES"
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  Balls: %d / %d",
+        debug->ball_count,
+        MAX_BALLS
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  Particles: %d / %d",
+        debug->particle_count,
+        MAX_PARTICLES
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    y += DEBUG_LINE_HEIGHT;
+
+
+    snprintf(
+        text,
+        sizeof(text),
+        "  Powerups: %d / %d",
+        debug->powerup_count,
+        MAX_POWERUPS
+    );
+
+    debug_text(
+        x,
+        y,
+        text
+    );
+
+    debug_draw_collisions(state); 
+    debug_draw_velocity(state); 
+
+}
+
+
+ // ============================================================
+ // COLLISION DEBUG DRAWING
+ // ============================================================
+
+void
+debug_draw_collisions(const SimulationState *state)
+{
+    if (state == NULL)
+        return;
+
+    //  Player.
+    DrawRectangleLines(
+        (int)state->player.x,
+        (int)state->player.y,
+        (int)state->player.width,
+        (int)state->player.height,
+        RED
+    );
+
+
+    //  Enemy.
+    DrawRectangleLines(
+        (int)state->enemy.x,
+        (int)state->enemy.y,
+        (int)state->enemy.width,
+        (int)state->enemy.height,
+        RED
+    );
+
+
+    //  Balls.
+    for (int i = 0;
+         i < MAX_BALLS;
+         ++i) {
+
+        if (!state->balls.slots[i].active)
+            continue;
+
+
+        DrawRectangleLines(
+            (int)state->balls.x[i],
+            (int)state->balls.y[i],
+            BALL_SIZE,
+            BALL_SIZE,
+            GREEN
+        );
+    }
+}
+
+
+ //============================================================
+ // VELOCITY DEBUG DRAWING
+ //============================================================
+ 
+
+void
+debug_draw_velocity(const SimulationState *state)
+{
+    if (state == NULL)
+        return;
+
+    for (int i = 0; i < MAX_BALLS; ++i) {
+        if (!state->balls.slots[i].active)
+            continue;
+
+        float center_x = state->balls.x[i] + BALL_SIZE * 0.5f;
+        float center_y = state->balls.y[i] + BALL_SIZE * 0.5f;
+        float end_x    = center_x + state->balls.vx[i] * 0.5f;
+        float end_y    = center_y + state->balls.vy[i] * 0.5f;
+
+        DrawLine(
+            (int)center_x,
+            (int)center_y,
+            (int)end_x,
+            (int)end_y,
+            YELLOW
+        );
+    }
+}
+
+
+
+entities.c
+
+#include "entities.h"
+#include "raylib.h"
+#include <math.h>
+#include "log.h"
+
+
+/* ============================================================
+ * BALLS
+ * ============================================================ */
+
+void
+balls_clear(
+    BallPool *balls
+)
+{
+    for (int i = 0; i < MAX_BALLS; ++i) {
+
+        balls->slots[i].active = false;
+
+        /*
+         * Generation 0 is reserved for INVALID_HANDLE.
+         */
+        if (balls->slots[i].generation == 0)
+            balls->slots[i].generation = 1;
+
+        balls->x[i] = 0.0f;
+        balls->y[i] = 0.0f;
+
+        balls->vx[i] = 0.0f;
+        balls->vy[i] = 0.0f;
+
+        balls->speed[i] = 0.0f;
+    }
+}
+
+
+EntityHandle
+ball_create(
+    BallPool *balls,
+    float x,
+    float y,
+    float vx,
+    float vy
+)
+{
+    for (uint32_t i = 0; i < MAX_BALLS; ++i) {
+
+        if (balls->slots[i].active)
+            continue;
+
+        balls->slots[i].active = true;
+
+        balls->x[i] = x;
+        balls->y[i] = y;
+
+        balls->vx[i] = vx;
+        balls->vy[i] = vy;
+
+        balls->speed[i] =
+            sqrtf(vx * vx + vy * vy);
+
+        LOG_ENTITY(
+            "ball created: slot=%u gen=%u x=%.1f y=%.1f",
+            i,
+            balls->slots[i].generation,
+            x,
+            y
+        );
+
+        return (EntityHandle){
+            .index = i,
+            .generation = balls->slots[i].generation
+        };
+    }
+
+    LOG_ENTITY(
+        "ball creation failed: pool full"
+    );
+
+    return INVALID_HANDLE;
+}
+
+
+bool
+ball_is_valid(
+    const BallPool *balls,
+    EntityHandle handle
+)
+{
+    if (handle.index >= MAX_BALLS)
+        return false;
+
+    const Slot *slot =
+        &balls->slots[handle.index];
+
+    return
+        slot->active &&
+        slot->generation == handle.generation;
+}
+
+
+void
+ball_destroy(
+    BallPool *balls,
+    EntityHandle handle
+)
+{
+    if (!ball_is_valid(balls, handle))
+        return;
+
+    /*
+     * Incrementing the generation invalidates
+     * every existing handle referring to this slot.
+     */
+    balls->slots[handle.index].generation++;
+
+    balls->slots[handle.index].active = false;
+
+    balls->x[handle.index] = 0.0f;
+    balls->y[handle.index] = 0.0f;
+
+    balls->vx[handle.index] = 0.0f;
+    balls->vy[handle.index] = 0.0f;
+
+    balls->speed[handle.index] = 0.0f;
+}
+
+
+/* ============================================================
+ * PARTICLES
+ * ============================================================ */
+
+void
+particles_clear(
+    ParticlePool *particles
+)
+{
+    for (int i = 0; i < MAX_PARTICLES; ++i) {
+
+        particles->active[i] = 0;
+
+        particles->x[i] = 0.0f;
+        particles->y[i] = 0.0f;
+
+        particles->vx[i] = 0.0f;
+        particles->vy[i] = 0.0f;
+
+        particles->lifetime[i] = 0.0f;
+        particles->max_lifetime[i] = 0.0f;
+
+        particles->size[i] = 0.0f;
+    }
+}
+void 
+  particles_spawn(
+  ParticlePool *particles,
+  float x,
+  float y,
+  float vx,
+  float vy,
+  float lifetime,
+  float size
+)
+{
+    for (int n = 0; n < 20; ++n) {
+
+        int slot = -1;
+
+        /*
+         * Find a free particle slot.
+         */
+        for (int i = 0; i < MAX_PARTICLES; ++i) {
+
+            if (!particles->active[i]) {
+                slot = i;
+                break;
+            }
+        }
+
+        /*
+         * Pool is full.
+         */
+        if (slot < 0)
+            return;
+
+        float angle =
+            (float)GetRandomValue(0, 359) *
+            (PI / 180.0f);
+
+        float speed =
+            (float)GetRandomValue(50, 180);
+
+        particles->active[slot] = 1;
+
+        particles->x[slot] = x;
+        particles->y[slot] = y;
+
+        particles->vx[slot] =
+            cosf(angle) * speed;
+
+        particles->vy[slot] =
+            sinf(angle) * speed;
+
+        particles->max_lifetime[slot] =
+            0.25f +
+            (float)GetRandomValue(0, 100) / 1000.0f;
+
+        particles->lifetime[slot] =
+            particles->max_lifetime[slot];
+
+        particles->size[slot] =
+            (float)GetRandomValue(2, 5);
+    }
+}
+
+
+void
+particles_update(
+    ParticlePool *particles,
+    float dt
+)
+{
+    for (int i = 0; i < MAX_PARTICLES; ++i) {
+
+        if (!particles->active[i])
+            continue;
+
+        particles->lifetime[i] -= dt;
+
+        if (particles->lifetime[i] <= 0.0f) {
+            particles->active[i] = 0;
+            continue;
+        }
+
+        particles->x[i] +=
+            particles->vx[i] * dt;
+
+        particles->y[i] +=
+            particles->vy[i] * dt;
+
+        particles->vx[i] *= 0.98f;
+        particles->vy[i] *= 0.98f;
+    }
+}
+
+
+/* ============================================================
+ * POWERUPS
+ * ============================================================ */
+
+void
+powerups_clear(
+    PowerupPool *powerups
+)
+{
+    for (int i = 0; i < MAX_POWERUPS; ++i) {
+
+        powerups->active[i] = 0;
+
+        powerups->x[i] = 0.0f;
+        powerups->y[i] = 0.0f;
+
+        powerups->lifetime[i] = 0.0f;
+
+        powerups->type[i] =
+            POWERUP_SPEED;
+    }
+}
+
+
+void 
+powerup_create(
+PowerupPool *powerups,
+float x,
+float y,
+PowerupType type
+)
+{
+    for (int i = 0; i < MAX_POWERUPS; ++i) {
+
+        if (powerups->active[i])
+            continue;
+
+        powerups->active[i] = 1;
+
+        powerups->x[i] =
+            (float)GetRandomValue(
+                (int)COURT_LEFT + 80,
+                (int)COURT_RIGHT - 80
+            );
+
+        powerups->y[i] =
+            (float)GetRandomValue(
+                (int)COURT_TOP + 40,
+                (int)COURT_BOTTOM - 40
+            );
+
+        powerups->type[i] =
+            GetRandomValue(0, 1) == 0
+                ? POWERUP_SPEED
+                : POWERUP_MULTI_BALL;
+
+        powerups->lifetime[i] = 8.0f;
+
+        return i;
+    }
+
+    return -1;
+}
+
+
+void
+powerups_update(
+    PowerupPool *powerups,
+    float dt
+)
+{
+    for (int i = 0; i < MAX_POWERUPS; ++i) {
+
+        if (!powerups->active[i])
+            continue;
+
+        powerups->lifetime[i] -= dt;
+
+        if (powerups->lifetime[i] <= 0.0f)
+            powerups->active[i] = 0;
+    }
+}
+
+
+game.c
+
+#include "game.h"
+
+#include <string.h>
+
+#include "entities.h"
+#include "simulation.h"
+
+static void
+reset_paddles(SimulationState *state)
+{
+state->player.x =
+COURT_LEFT + 20.0f;
+
+state->player.y =
+    SCREEN_HEIGHT / 2.0f -
+    PADDLE_HEIGHT / 2.0f;
+
+state->player.width =
+    PADDLE_WIDTH;
+
+state->player.height =
+    PADDLE_HEIGHT;
+
+state->player.speed =
+    PLAYER_SPEED;
+
+state->enemy.x =
+    COURT_RIGHT -
+    PADDLE_WIDTH -
+    20.0f;
+
+state->enemy.y =
+    SCREEN_HEIGHT / 2.0f -
+    PADDLE_HEIGHT / 2.0f;
+
+state->enemy.width =
+    PADDLE_WIDTH;
+
+state->enemy.height =
+    PADDLE_HEIGHT;
+
+/*
+ * Use the actual enemy speed constant from config.h.
+ */
+state->enemy.speed =
+    PLAYER_SPEED;
+
+}
+
+void
+game_init(SimulationState *state)
+{
+memset(state, 0, sizeof(*state));
+
+state->mode = GAME_TITLE;
+
+reset_paddles(state);
+
+balls_clear(&state->balls);
+particles_clear(&state->particles);
+powerups_clear(&state->powerups);
+
+simulation_init(state);
+
+}
+
+void
+game_start(SimulationState *state)
+{
+state->mode = GAME_PLAYING;
+
+state->game_time = 0.0f;
+state->winner = 0;
+
+reset_paddles(state);
+
+balls_clear(&state->balls);
+particles_clear(&state->particles);
+powerups_clear(&state->powerups);
+
+state->powerup_timer = 0.0f;
+
+ball_create(
+    &state->balls,
+    SCREEN_WIDTH / 2.0f,
+    SCREEN_HEIGHT / 2.0f,
+    INITIAL_BALL_SPEED,
+    100.0f
+);
+
+simulation_reset(state);
+
+}
+
+void
+game_update(
+SimulationState *state,
+const GameInput *input,
+float dt
+)
+{
+if (state->mode != GAME_PLAYING)
+return;
+
+state->game_time += dt;
+
+simulation_update(
+    state,
+    input,
+    dt
+);
+
+}
+
+void
+game_make_render_snapshot(
+const SimulationState *state,
+RenderSnapshot *snapshot
+)
+{
+snapshot->player_x =
+state->player.x;
+
+snapshot->player_y =
+    state->player.y;
+
+snapshot->enemy_x =
+    state->enemy.x;
+
+snapshot->enemy_y =
+    state->enemy.y;
+
+for (int i = 0; i < MAX_BALLS; ++i) {
+    snapshot->balls[i].active =
+        state->balls.slots[i].active;
+
+    snapshot->balls[i].x =
+        state->balls.x[i];
+
+    snapshot->balls[i].y =
+        state->balls.y[i];
+}
+
+}
+
+
+
+
+input.c
+
+#include "input.h"
+#include "raylib.h"
+
+
+void input_sample(GameInput *input)
+{
+  input->up    = IsKeyDown(KEY_UP);
+  input->down  = IsKeyDown(KEY_DOWN);
+  input->pause = IsKeyPressed(KEY_ESCAPE);
+  input->start = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE); 
+};
+
+
+
+
+
+
+log.c
+
+#include "log.h"
+
+#include <stdarg.h>
+#include <stdio.h>
+
+
+/* ============================================================
+ * STATE
+ * ============================================================
+ */
+
+static uint32_t enabled_categories;
+
+
+void log_init(void)
+{
+ enabled_categories = 0;
+ 
+}
+
+void log_enable(LogCategory category)
+{
+  enabled_categories |= (1u << category);
+}
+
+void log_disable(LogCategory category)
+{
+  enabled_categories &= ~(1u << category);
+}
+
+int log_is_enabled(LogCategory category)
+{
+  return  (enabled_categories & (1u << category)) != 0; 
+}
+
+
+void
+log_message(
+    LogCategory category,
+    const char* file,
+    int         line,
+    const char* format,
+    ...
+)
+{
+    if (!log_is_enabled(category))
+        return;
+
+
+    printf(
+        "[%s] %s:%d: ",
+        log_category_name[category],
+        file,
+        line
+    );
+
+
+    va_list args;
+
+    va_start(args, format);
+
+    vprintf(
+        format,
+        args
+    );
+
+    va_end(args);
+
+
+    printf("\n");
+
+    fflush(stdout);
+}
+
+
+
+main.c
+
+#include "raylib.h"
+
+#include "game.h"
+#include "input.h"
+#include "render.h"
+#include "simulation.h"
+#include "types.h"
+
+int
+main(void)
+{
+InitWindow(
+SCREEN_WIDTH,
+SCREEN_HEIGHT,
+"Pong"
+);
+
+SetTargetFPS(60);
+
+SimulationState state;
+GameInput input;
+
+RenderSnapshot previous = {0};
+RenderSnapshot current = {0};
+
+game_init(&state);
+
+game_make_render_snapshot(
+    &state,
+    &previous
+);
+
+game_make_render_snapshot(
+    &state,
+    &current
+);
+
+
+double accumulator = 0.0;
+
+while (!WindowShouldClose()) {
+    /*
+     * Input is sampled once per rendered frame.
+     */
+    input_sample(&input);
+
+    /*
+     * Accumulate real elapsed time.
+     */
+    double frame_time = GetFrameTime();
+
+    if (frame_time > MAX_FRAME_TIME)
+        frame_time = MAX_FRAME_TIME;
+
+    accumulator += frame_time;
+
+    /*
+     * Fixed-timestep simulation.
+     */
+    while (accumulator >= SIM_DT) {
+        previous = current;
+
+        game_update(
+            &state,
+            &input,
+            (float)SIM_DT
+        );
+
+        game_make_render_snapshot(
+            &state,
+            &current
+        );
+
+        accumulator -= SIM_DT;
+    }
+
+    /*
+     * Interpolation factor between the previous and current
+     * simulation states.
+     */
+    float alpha =
+        (float)(accumulator / SIM_DT);
+
+    render_frame(
+        &previous,
+        &current,
+        alpha
+    );
+}
+
+simulation_shutdown();
+
+CloseWindow();
+
+return 0;
+
+}
+
+
+
+render.c
+
+#include "render.h"
+
+#include "raylib.h"
+
+#include "game.h"
+
+static float
+lerp_float(float a, float b, float t)
+{
+return a + (b - a) * t;
+}
+
+void
+render_init(void)
+{
+/*
+* Rendering currently uses raylib directly, so there is no
+* renderer-specific initialization.
+*/
+}
+
+void
+render_shutdown(void)
+{
+/*
+* No renderer-specific resources currently need to be released.
+*/
+}
+
+void
+render_frame(
+const RenderSnapshot *previous,
+const RenderSnapshot *current,
+float alpha
+)
+{
+BeginDrawing();
+
+ClearBackground(BLACK);
+
+/*
+ * Court.
+ */
+DrawRectangleLines(
+    (int)COURT_LEFT,
+    (int)COURT_TOP,
+    (int)(COURT_RIGHT - COURT_LEFT),
+    (int)(COURT_BOTTOM - COURT_TOP),
+    WHITE
+);
+
+/*
+ * Center line.
+ */
+DrawLine(
+    SCREEN_WIDTH / 2,
+    (int)COURT_TOP,
+    SCREEN_WIDTH / 2,
+    (int)COURT_BOTTOM,
+    WHITE
+);
+
+/*
+ * Player paddle.
+ */
+float player_x = lerp_float(
+    previous->player_x,
+    current->player_x,
+    alpha
+);
+
+float player_y = lerp_float(
+    previous->player_y,
+    current->player_y,
+    alpha
+);
+
+DrawRectangle(
+    (int)player_x,
+    (int)player_y,
+    (int)PADDLE_WIDTH,
+    (int)PADDLE_HEIGHT,
+    WHITE
+);
+
+/*
+ * Enemy paddle.
+ */
+float enemy_x = lerp_float(
+    previous->enemy_x,
+    current->enemy_x,
+    alpha
+);
+
+float enemy_y = lerp_float(
+    previous->enemy_y,
+    current->enemy_y,
+    alpha
+);
+
+DrawRectangle(
+    (int)enemy_x,
+    (int)enemy_y,
+    (int)PADDLE_WIDTH,
+    (int)PADDLE_HEIGHT,
+    WHITE
+);
+
+/*
+ * Balls.
+ *
+ * Ball slots are stable, so the snapshot can be interpolated
+ * by slot/index as long as both snapshots preserve slot identity.
+ */
+int ball_count = current->ball_count;
+
+for (int i = 0; i < ball_count; ++i) {
+    float x = current->balls[i].x;
+    float y = current->balls[i].y;
+
+    if (i < previous->ball_count) {
+        x = lerp_float(
+            previous->balls[i].x,
+            current->balls[i].x,
+            alpha
+        );
+
+        y = lerp_float(
+            previous->balls[i].y,
+            current->balls[i].y,
+            alpha
+        );
+    }
+
+    DrawRectangle(
+        (int)x,
+        (int)y,
+        (int)BALL_SIZE,
+        (int)BALL_SIZE,
+        WHITE
+    );
+}
+
+EndDrawing();
+
+}
+
+
+
+simulation.c
+
+#include "simulation.h"
+
+#include "entities.h"
+#include "log.h"
+
+#include <math.h>
+#include <stdbool.h>
+
+#define PHYSICS_SCALE 100.0f
+
+#define PX_TO_M(x) ((x) / PHYSICS_SCALE)
+#define M_TO_PX(x) ((x) * PHYSICS_SCALE)
+
+static b2WorldId world;
+
+static b2BodyId player_body;
+static b2BodyId enemy_body;
+
+static b2BodyId ball_bodies[MAX_BALLS];
+
+static bool initialized = false;
+
+/* ============================================================
+
+* HELPERS
+* ============================================================
+  */
+
+static b2Vec2
+pixel_to_meter(float x, float y)
+{
+return (b2Vec2){
+PX_TO_M(x),
+PX_TO_M(y)
+};
+}
+
+static void
+destroy_ball_body(int index)
+{
+if (!b2Body_IsValid(ball_bodies[index]))
+return;
+
+b2DestroyBody(ball_bodies[index]);
+
+ball_bodies[index] = b2_nullBodyId;
+
+}
+
+static void
+destroy_paddle_bodies(void)
+{
+if (b2Body_IsValid(player_body)) {
+b2DestroyBody(player_body);
+player_body = b2_nullBodyId;
+}
+
+if (b2Body_IsValid(enemy_body)) {
+    b2DestroyBody(enemy_body);
+    enemy_body = b2_nullBodyId;
+}
+
+}
+
+/* ============================================================
+
+* BOX2D BODIES
+* ============================================================
+  */
+
+static b2BodyId
+create_static_box(
+float x,
+float y,
+float width,
+float height
+)
+{
+b2BodyDef body_def = b2DefaultBodyDef();
+
+body_def.type = b2_staticBody;
+body_def.position = pixel_to_meter(
+    x + width * 0.5f,
+    y + height * 0.5f
+);
+
+b2BodyId body =
+    b2CreateBody(world, &body_def);
+
+b2ShapeDef shape_def =
+    b2DefaultShapeDef();
+
+shape_def.material.friction = 0.0f;
+shape_def.material.restitution = 1.0f;
+
+b2Polygon box =
+    b2MakeBox(
+        PX_TO_M(width * 0.5f),
+        PX_TO_M(height * 0.5f)
+    );
+
+b2CreatePolygonShape(
+    body,
+    &shape_def,
+    &box
+);
+
+return body;
+
+}
+
+static b2BodyId
+create_paddle_body(
+const Paddle *paddle
+)
+{
+b2BodyDef body_def =
+b2DefaultBodyDef();
+
+body_def.type = b2_kinematicBody;
+
+body_def.position =
+    pixel_to_meter(
+        paddle->x + paddle->width * 0.5f,
+        paddle->y + paddle->height * 0.5f
+    );
+
+
+b2BodyId body =
+    b2CreateBody(world, &body_def);
+
+b2ShapeDef shape_def =
+    b2DefaultShapeDef();
+
+shape_def.material.friction = 0.0f;
+shape_def.material.restitution = 1.0f;
+
+b2Polygon box =
+    b2MakeBox(
+        PX_TO_M(paddle->width * 0.5f),
+        PX_TO_M(paddle->height * 0.5f)
+    );
+
+b2CreatePolygonShape(
+    body,
+    &shape_def,
+    &box
+);
+
+return body;
+
+}
+
+static b2BodyId
+create_ball_body(
+float x,
+float y,
+float vx,
+float vy
+)
+{
+b2BodyDef body_def =
+b2DefaultBodyDef();
+
+body_def.type = b2_dynamicBody;
+
+body_def.position =
+    pixel_to_meter(
+        x + BALL_SIZE * 0.5f,
+        y + BALL_SIZE * 0.5f
+    );
+
+body_def.isBullet = true;
+body_def.enableSleep = false;
+
+b2BodyId body =
+    b2CreateBody(world, &body_def);
+
+b2ShapeDef shape_def =
+    b2DefaultShapeDef();
+
+shape_def.density = 1.0f;
+shape_def.material.friction = 0.0f;
+shape_def.material.restitution = 1.0f;
+
+b2Circle circle = {
+    .center = {0.0f, 0.0f},
+    .radius = PX_TO_M(BALL_SIZE * 0.5f)
+};
+
+b2CreateCircleShape(
+    body,
+    &shape_def,
+    &circle
+);
+
+b2Body_SetLinearVelocity(
+    body,
+    pixel_to_meter(vx, vy)
+);
+
+return body;
+
+}
+
+/* ============================================================
+
+* WORLD
+* ============================================================
+  */
+
+static void
+create_walls(void)
+{
+/*
+* Top wall.
+*/
+create_static_box(
+COURT_LEFT,
+COURT_TOP - 10.0f,
+COURT_RIGHT - COURT_LEFT,
+10.0f
+);
+
+/*
+ * Bottom wall.
+ */
+create_static_box(
+    COURT_LEFT,
+    COURT_BOTTOM,
+    COURT_RIGHT - COURT_LEFT,
+    10.0f
+);
+
+}
+
+/* ============================================================
+
+* SYNCHRONIZATION
+* ============================================================
+*/
+
+
+
+static void
+sync_balls_to_physics(
+SimulationState *state
+)
+{
+BallPool *balls =
+&state->balls;
+
+for (int i = 0; i < MAX_BALLS; ++i) {
+
+    EntityHandle handle = {
+        .index = (uint32_t)i,
+        .generation =
+            balls->slots[i].generation
+    };
+
+    if (!ball_is_valid(balls, handle)) {
+
+        destroy_ball_body(i);
+
+        continue;
+    }
+
+    /*
+     * Create Box2D body when the
+     * game-side ball is newly created.
+     */
+    if (!b2Body_IsValid(ball_bodies[i])) {
+
+        ball_bodies[i] =
+            create_ball_body(
+                balls->x[i],
+                balls->y[i],
+                balls->vx[i],
+                balls->vy[i]
+            );
+
+        continue;
+    }
+
+    /*
+     * The game-side state normally comes
+     * FROM Box2D, so we don't overwrite
+     * the Box2D transform here.
+     */
+}
+
+}
+
+static void
+sync_physics_to_game(
+SimulationState *state
+)
+{
+BallPool *balls =
+&state->balls;
+
+for (int i = 0; i < MAX_BALLS; ++i) {
+
+    EntityHandle handle = {
+        .index = (uint32_t)i,
+        .generation =
+            balls->slots[i].generation
+    };
+
+    if (!ball_is_valid(balls, handle))
+        continue;
+
+    if (!b2Body_IsValid(ball_bodies[i]))
+        continue;
+
+    b2Vec2 position =
+        b2Body_GetPosition(
+            ball_bodies[i]
+        );
+
+    b2Vec2 velocity =
+        b2Body_GetLinearVelocity(
+            ball_bodies[i]
+        );
+
+    /*
+     * Box2D stores the ball CENTER.
+     * The game stores its TOP-LEFT.
+     */
+    balls->x[i] =
+        M_TO_PX(position.x)
+        - BALL_SIZE * 0.5f;
+
+    balls->y[i] =
+        M_TO_PX(position.y)
+        - BALL_SIZE * 0.5f;
+
+    balls->vx[i] =
+        M_TO_PX(velocity.x);
+
+    balls->vy[i] =
+        M_TO_PX(velocity.y);
+
+    balls->speed[i] =
+        sqrtf(
+            balls->vx[i] * balls->vx[i] +
+            balls->vy[i] * balls->vy[i]
+        );
+}
+
+
+/*
+ * Paddles.
+ */
+if (b2Body_IsValid(player_body)) {
+
+    b2Vec2 position =
+        b2Body_GetPosition(
+            player_body
+        );
+
+    state->player.y =
+        M_TO_PX(position.y)
+        - state->player.height * 0.5f;
+}
+
+
+if (b2Body_IsValid(enemy_body)) {
+
+    b2Vec2 position =
+        b2Body_GetPosition(
+            enemy_body
+        );
+
+    state->enemy.y =
+        M_TO_PX(position.y)
+        - state->enemy.height * 0.5f;
+}
+
+}
+
+/* ============================================================
+
+* PLAYER / AI
+* ============================================================
+  */
+
+static void
+player_system(
+SimulationState *state,
+const GameInput *input
+)
+{
+float velocity = 0.0f;
+
+if (input->up)
+    velocity -= state->player.speed;
+
+if (input->down)
+    velocity += state->player.speed;
+
+b2Body_SetLinearVelocity(
+    player_body,
+    (b2Vec2){
+        0.0f,
+        PX_TO_M(velocity)
+    }
+);
+
+}
+
+static void
+enemy_system(
+SimulationState *state
+)
+{
+BallPool *balls =
+&state->balls;
+
+if (!ball_is_valid(
+        balls,
+        state->ai_target))
+{
+    state->ai_target =
+        INVALID_HANDLE;
+
+    float best_x =
+        -100000.0f;
+
+    for (uint32_t i = 0;
+         i < MAX_BALLS;
+         ++i)
+    {
+        if (!balls->slots[i].active)
+            continue;
+
+        if (balls->x[i] > best_x) {
+
+            best_x =
+                balls->x[i];
+
+            state->ai_target =
+                (EntityHandle){
+                    .index = i,
+                    .generation =
+                        balls->slots[i].generation
+                };
+        }
+    }
+}
+
+if (!ball_is_valid(
+        balls,
+        state->ai_target))
+{
+    b2Body_SetLinearVelocity(
+        enemy_body,
+        (b2Vec2){0.0f, 0.0f}
+    );
+
+    return;
+}
+
+uint32_t index =
+    state->ai_target.index;
+
+float ball_y =
+    balls->y[index] +
+    BALL_SIZE * 0.5f;
+
+float paddle_y =
+    state->enemy.y +
+    state->enemy.height * 0.5f;
+
+float velocity = 0.0f;
+
+if (ball_y < paddle_y)
+    velocity = -state->enemy.speed;
+
+else if (ball_y > paddle_y)
+    velocity = state->enemy.speed;
+
+b2Body_SetLinearVelocity(
+    enemy_body,
+    (b2Vec2){
+        0.0f,
+        PX_TO_M(velocity)
+    }
+);
+
+}
+
+/* ============================================================
+
+* SCORING
+* ============================================================
+  */
+
+static void
+scoring_system(
+SimulationState *state
+)
+{
+BallPool *balls =
+&state->balls;
+
+int active_balls = 0;
+
+for (uint32_t i = 0;
+     i < MAX_BALLS;
+     ++i)
+{
+    if (!balls->slots[i].active)
+        continue;
+
+    EntityHandle handle = {
+        .index = i,
+        .generation =
+            balls->slots[i].generation
+    };
+
+    if (balls->x[i] <
+        COURT_LEFT - BALL_SIZE)
+    {
+        state->enemy.score++;
+/*
+        particles_spawn(
+            &state->particles,
+            balls->x[i],
+            balls->y[i],
+            20
+        );
+*/
+particles_spawn(
+    &state->particles,
+    balls->x[i],
+    balls->y[i],
+    0.0f,   /* vx */
+    0.0f,   /* vy */
+    1.0f,   /* lifetime */
+    2.0f    /* size */
+);
+        destroy_ball_body(i);
+
+        ball_destroy(
+            balls,
+            handle
+        );
+    }
+    else if (balls->x[i] >
+             COURT_RIGHT)
+    {
+        state->player.score++;
+/*
+        particles_spawn(
+            &state->particles,
+            balls->x[i],
+            balls->y[i],
+            20
+        );
+*/
+particles_spawn(
+    &state->particles,
+    balls->x[i],
+    balls->y[i],
+    0.0f,   /* vx */
+    0.0f,   /* vy */
+    1.0f,   /* lifetime */
+    2.0f    /* size */
+);
+        destroy_ball_body(i);
+
+        ball_destroy(
+            balls,
+            handle
+        );
+    }
+    else {
+        active_balls++;
+    }
+}
+
+
+if (active_balls == 0) {
+
+    ball_create(
+        balls,
+
+        SCREEN_WIDTH / 2.0f
+            - BALL_SIZE / 2.0f,
+
+        SCREEN_HEIGHT / 2.0f
+            - BALL_SIZE / 2.0f,
+
+        (state->player.score >
+         state->enemy.score)
+            ? -INITIAL_BALL_SPEED
+            : INITIAL_BALL_SPEED,
+
+        100.0f
+    );
+}
+
+}
+
+/* ============================================================
+
+* INITIALIZATION
+* ============================================================
+  */
+
+void
+simulation_init(
+SimulationState *state
+)
+{
+b2WorldDef world_def =
+b2DefaultWorldDef();
+
+world_def.gravity =
+    (b2Vec2){
+        0.0f,
+        0.0f
+    };
+
+world_def.enableContinuous = true;
+
+world =
+    b2CreateWorld(
+        &world_def
+    );
+
+player_body =
+    b2_nullBodyId;
+
+enemy_body =
+    b2_nullBodyId;
+
+for (int i = 0;
+     i < MAX_BALLS;
+     ++i)
+{
+    ball_bodies[i] =
+        b2_nullBodyId;
+}
+
+create_walls();
+
+initialized = true;
+
+(void)state;
+
+LOG_SIMULATION(
+    "Box2D initialized"
+);
+
+}
+
+/* ============================================================
+
+* RESET
+* ============================================================
+  */
+
+void
+simulation_reset(
+SimulationState *state
+)
+{
+if (!initialized)
+return;
+
+destroy_paddle_bodies();
+
+for (int i = 0;
+     i < MAX_BALLS;
+     ++i)
+{
+    destroy_ball_body(i);
+}
+
+(void)state;
+
+}
+
+/* ============================================================
+
+* SHUTDOWN
+* ============================================================
+  */
+
+void
+simulation_shutdown(void)
+{
+if (!initialized)
+return;
+
+if (b2World_IsValid(world)) {
+    b2DestroyWorld(world);
+}
+
+world =
+    b2_nullWorldId;
+
+initialized = false;
+
+}
+
+/* ============================================================
+
+* MAIN SIMULATION
+* ============================================================
+  */
+
+void
+simulation_update(
+SimulationState *state,
+const GameInput *input,
+float dt
+)
+{
+if (!initialized)
+return;
+
+/*
+ * Create/recreate physics bodies.
+ */
+if (!b2Body_IsValid(player_body))
+    player_body =
+        create_paddle_body(
+            &state->player
+        );
+
+if (!b2Body_IsValid(enemy_body))
+    enemy_body =
+        create_paddle_body(
+            &state->enemy
+        );
+
+
+/*
+ * Game-side input/AI -> Box2D.
+ */
+player_system(
+    state,
+    input
+);
+
+enemy_system(state);
+
+
+/*
+ * Game-side entities -> Box2D.
+ */
+sync_balls_to_physics(state);
+
+
+/*
+ * Physics.
+ */
+b2World_Step(
+    world,
+    dt,
+    4
+);
+
+
+/*
+ * Box2D -> game-side state.
+ */
+sync_physics_to_game(state);
+
+
+/*
+ * Scoring still belongs to the
+ * game rules, not the physics engine.
+ */
+scoring_system(state);
+
+
+/*
+ * Non-physics systems.
+ */
+particles_update(
+    &state->particles,
+    dt
+);
+}
+
+
+third_party_impl.c
+
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
+
+

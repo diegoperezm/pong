@@ -1,212 +1,397 @@
 [
 {
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/include -I/Users/dapm/project/pong/third_party/raygui -I/Users/dapm/project/pong/third_party/raylib/src -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/pong.dir/src/main.c.o -c /Users/dapm/project/pong/src/main.c",
-  "file": "/Users/dapm/project/pong/src/main.c",
-  "output": "CMakeFiles/pong.dir/src/main.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/main.c.o -c /media/dapm/projects/pong/src/main.c",
+  "file": "/media/dapm/projects/pong/src/main.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/include -I/Users/dapm/project/pong/third_party/raygui -I/Users/dapm/project/pong/third_party/raylib/src -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/pong.dir/src/third_party_impl.c.o -c /Users/dapm/project/pong/src/third_party_impl.c",
-  "file": "/Users/dapm/project/pong/src/third_party_impl.c",
-  "output": "CMakeFiles/pong.dir/src/third_party_impl.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/third_party_impl.c.o -c /media/dapm/projects/pong/src/third_party_impl.c",
+  "file": "/media/dapm/projects/pong/src/third_party_impl.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/include -I/Users/dapm/project/pong/third_party/raygui -I/Users/dapm/project/pong/third_party/raylib/src -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/pong.dir/src/input.c.o -c /Users/dapm/project/pong/src/input.c",
-  "file": "/Users/dapm/project/pong/src/input.c",
-  "output": "CMakeFiles/pong.dir/src/input.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/input.c.o -c /media/dapm/projects/pong/src/input.c",
+  "file": "/media/dapm/projects/pong/src/input.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/include -I/Users/dapm/project/pong/third_party/raygui -I/Users/dapm/project/pong/third_party/raylib/src -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/pong.dir/src/game.c.o -c /Users/dapm/project/pong/src/game.c",
-  "file": "/Users/dapm/project/pong/src/game.c",
-  "output": "CMakeFiles/pong.dir/src/game.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/game.c.o -c /media/dapm/projects/pong/src/game.c",
+  "file": "/media/dapm/projects/pong/src/game.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/include -I/Users/dapm/project/pong/third_party/raygui -I/Users/dapm/project/pong/third_party/raylib/src -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/pong.dir/src/simulation.c.o -c /Users/dapm/project/pong/src/simulation.c",
-  "file": "/Users/dapm/project/pong/src/simulation.c",
-  "output": "CMakeFiles/pong.dir/src/simulation.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/simulation.c.o -c /media/dapm/projects/pong/src/simulation.c",
+  "file": "/media/dapm/projects/pong/src/simulation.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/include -I/Users/dapm/project/pong/third_party/raygui -I/Users/dapm/project/pong/third_party/raylib/src -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/pong.dir/src/collision.c.o -c /Users/dapm/project/pong/src/collision.c",
-  "file": "/Users/dapm/project/pong/src/collision.c",
-  "output": "CMakeFiles/pong.dir/src/collision.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/collision.c.o -c /media/dapm/projects/pong/src/collision.c",
+  "file": "/media/dapm/projects/pong/src/collision.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/include -I/Users/dapm/project/pong/third_party/raygui -I/Users/dapm/project/pong/third_party/raylib/src -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/pong.dir/src/entities.c.o -c /Users/dapm/project/pong/src/entities.c",
-  "file": "/Users/dapm/project/pong/src/entities.c",
-  "output": "CMakeFiles/pong.dir/src/entities.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/entities.c.o -c /media/dapm/projects/pong/src/entities.c",
+  "file": "/media/dapm/projects/pong/src/entities.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/include -I/Users/dapm/project/pong/third_party/raygui -I/Users/dapm/project/pong/third_party/raylib/src -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/pong.dir/src/render.c.o -c /Users/dapm/project/pong/src/render.c",
-  "file": "/Users/dapm/project/pong/src/render.c",
-  "output": "CMakeFiles/pong.dir/src/render.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/render.c.o -c /media/dapm/projects/pong/src/render.c",
+  "file": "/media/dapm/projects/pong/src/render.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib",
-  "command": "/usr/bin/cc -DGL_SILENCE_DEPRECATION -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/third_party/raylib/src -F/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -isystem /Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/raylib.dir/rcore.c.o -c /Users/dapm/project/pong/third_party/raylib/src/rcore.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/rcore.c",
-  "output": "third_party/raylib/raylib/CMakeFiles/raylib.dir/rcore.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/log.c.o -c /media/dapm/projects/pong/src/log.c",
+  "file": "/media/dapm/projects/pong/src/log.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib",
-  "command": "/usr/bin/cc -DGL_SILENCE_DEPRECATION -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/third_party/raylib/src -F/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -isystem /Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/raylib.dir/rshapes.c.o -c /Users/dapm/project/pong/third_party/raylib/src/rshapes.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/rshapes.c",
-  "output": "third_party/raylib/raylib/CMakeFiles/raylib.dir/rshapes.c.o"
+  "directory": "/media/dapm/projects/pong/build",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/media/dapm/projects/pong/include -I/media/dapm/projects/pong/src -I/media/dapm/projects/pong/third_party/raygui -I/media/dapm/projects/pong/third_party/raylib/src -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -O3 -std=c99 -o CMakeFiles/pong.dir/src/debug.c.o -c /media/dapm/projects/pong/src/debug.c",
+  "file": "/media/dapm/projects/pong/src/debug.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib",
-  "command": "/usr/bin/cc -DGL_SILENCE_DEPRECATION -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/third_party/raylib/src -F/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -isystem /Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/raylib.dir/rtext.c.o -c /Users/dapm/project/pong/third_party/raylib/src/rtext.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/rtext.c",
-  "output": "third_party/raylib/raylib/CMakeFiles/raylib.dir/rtext.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src -isystem /media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -std=c99 -o CMakeFiles/raylib.dir/rcore.c.o -c /media/dapm/projects/pong/third_party/raylib/src/rcore.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/rcore.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib",
-  "command": "/usr/bin/cc -DGL_SILENCE_DEPRECATION -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/third_party/raylib/src -F/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -isystem /Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/raylib.dir/rtextures.c.o -c /Users/dapm/project/pong/third_party/raylib/src/rtextures.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/rtextures.c",
-  "output": "third_party/raylib/raylib/CMakeFiles/raylib.dir/rtextures.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src -isystem /media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -std=c99 -o CMakeFiles/raylib.dir/rshapes.c.o -c /media/dapm/projects/pong/third_party/raylib/src/rshapes.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/rshapes.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib",
-  "command": "/usr/bin/cc -DGL_SILENCE_DEPRECATION -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/third_party/raylib/src -F/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -isystem /Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/raylib.dir/raudio.c.o -c /Users/dapm/project/pong/third_party/raylib/src/raudio.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/raudio.c",
-  "output": "third_party/raylib/raylib/CMakeFiles/raylib.dir/raudio.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src -isystem /media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -std=c99 -o CMakeFiles/raylib.dir/rtext.c.o -c /media/dapm/projects/pong/third_party/raylib/src/rtext.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/rtext.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib",
-  "command": "/usr/bin/cc -DGL_SILENCE_DEPRECATION -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -I/Users/dapm/project/pong/third_party/raylib/src -F/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/Frameworks -isystem /Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -o CMakeFiles/raylib.dir/rmodels.c.o -c /Users/dapm/project/pong/third_party/raylib/src/rmodels.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/rmodels.c",
-  "output": "third_party/raylib/raylib/CMakeFiles/raylib.dir/rmodels.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src -isystem /media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -std=c99 -o CMakeFiles/raylib.dir/rtextures.c.o -c /media/dapm/projects/pong/third_party/raylib/src/rtextures.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/rtextures.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/context.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/context.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/context.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/context.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src -isystem /media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -std=c99 -o CMakeFiles/raylib.dir/raudio.c.o -c /media/dapm/projects/pong/third_party/raylib/src/raudio.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/raudio.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/init.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/init.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/init.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/init.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib",
+  "command": "/usr/bin/cc -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src -isystem /media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -std=c99 -o CMakeFiles/raylib.dir/rmodels.c.o -c /media/dapm/projects/pong/third_party/raylib/src/rmodels.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/rmodels.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/input.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/input.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/input.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/input.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/context.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/context.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/context.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/monitor.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/monitor.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/monitor.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/monitor.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/init.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/init.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/init.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/platform.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/platform.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/platform.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/platform.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/input.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/input.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/input.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/vulkan.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/vulkan.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/vulkan.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/vulkan.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/monitor.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/monitor.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/monitor.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/window.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/window.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/window.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/window.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/platform.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/platform.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/platform.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/egl_context.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/egl_context.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/egl_context.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/egl_context.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/vulkan.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/vulkan.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/vulkan.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/osmesa_context.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/osmesa_context.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/osmesa_context.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/osmesa_context.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/window.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/window.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/window.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/null_init.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/null_init.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/null_init.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/null_init.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/egl_context.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/egl_context.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/egl_context.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/null_monitor.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/null_monitor.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/null_monitor.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/null_monitor.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/osmesa_context.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/osmesa_context.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/osmesa_context.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/null_window.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/null_window.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/null_window.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/null_window.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/null_init.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/null_init.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/null_init.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/null_joystick.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/null_joystick.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/null_joystick.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/null_joystick.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/null_monitor.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/null_monitor.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/null_monitor.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/cocoa_time.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_time.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_time.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/cocoa_time.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/null_window.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/null_window.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/null_window.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/posix_module.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/posix_module.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/posix_module.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/posix_module.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/null_joystick.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/null_joystick.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/null_joystick.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/posix_thread.c.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/posix_thread.c",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/posix_thread.c",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/posix_thread.c.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/posix_module.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/posix_module.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/posix_module.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/cocoa_init.m.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_init.m",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_init.m",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/cocoa_init.m.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/posix_time.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/posix_time.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/posix_time.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/cocoa_joystick.m.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_joystick.m",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_joystick.m",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/cocoa_joystick.m.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/posix_thread.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/posix_thread.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/posix_thread.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/cocoa_monitor.m.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_monitor.m",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_monitor.m",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/cocoa_monitor.m.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/x11_init.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/x11_init.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/x11_init.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/cocoa_window.m.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_window.m",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/cocoa_window.m",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/cocoa_window.m.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/x11_monitor.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/x11_monitor.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/x11_monitor.c"
 },
 {
-  "directory": "/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src",
-  "command": "/usr/bin/cc -D_GLFW_COCOA -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/include -I/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src -I/Users/dapm/project/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -DNDEBUG -std=c99 -arch arm64 -fPIC -Wall -o CMakeFiles/glfw.dir/nsgl_context.m.o -c /Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/nsgl_context.m",
-  "file": "/Users/dapm/project/pong/third_party/raylib/src/external/glfw/src/nsgl_context.m",
-  "output": "third_party/raylib/raylib/external/glfw/src/CMakeFiles/glfw.dir/nsgl_context.m.o"
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/x11_window.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/x11_window.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/x11_window.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/xkb_unicode.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/xkb_unicode.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/xkb_unicode.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/glx_context.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/glx_context.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/glx_context.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/linux_joystick.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/linux_joystick.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/linux_joystick.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src",
+  "command": "/usr/bin/cc -D_DEFAULT_SOURCE -D_GLFW_X11 -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/include -I/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src -I/media/dapm/projects/pong/build/third_party/raylib/raylib/external/glfw/src -fno-strict-aliasing -Werror=implicit-function-declaration -Werror=pointer-arith  -O3 -fPIC -Wall -std=c99 -o CMakeFiles/glfw.dir/posix_poll.c.o -c /media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/posix_poll.c",
+  "file": "/media/dapm/projects/pong/third_party/raylib/src/external/glfw/src/posix_poll.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/aabb.c.o -c /media/dapm/projects/pong/third_party/box2d/src/aabb.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/aabb.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/arena_allocator.c.o -c /media/dapm/projects/pong/third_party/box2d/src/arena_allocator.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/arena_allocator.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/bitset.c.o -c /media/dapm/projects/pong/third_party/box2d/src/bitset.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/bitset.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/body.c.o -c /media/dapm/projects/pong/third_party/box2d/src/body.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/body.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/broad_phase.c.o -c /media/dapm/projects/pong/third_party/box2d/src/broad_phase.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/broad_phase.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/constraint_graph.c.o -c /media/dapm/projects/pong/third_party/box2d/src/constraint_graph.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/constraint_graph.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/contact_solver.c.o -c /media/dapm/projects/pong/third_party/box2d/src/contact_solver.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/contact_solver.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/contact.c.o -c /media/dapm/projects/pong/third_party/box2d/src/contact.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/contact.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/core.c.o -c /media/dapm/projects/pong/third_party/box2d/src/core.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/core.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/distance_joint.c.o -c /media/dapm/projects/pong/third_party/box2d/src/distance_joint.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/distance_joint.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/distance.c.o -c /media/dapm/projects/pong/third_party/box2d/src/distance.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/distance.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/dynamic_tree.c.o -c /media/dapm/projects/pong/third_party/box2d/src/dynamic_tree.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/dynamic_tree.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/geometry.c.o -c /media/dapm/projects/pong/third_party/box2d/src/geometry.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/geometry.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/hull.c.o -c /media/dapm/projects/pong/third_party/box2d/src/hull.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/hull.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/id_pool.c.o -c /media/dapm/projects/pong/third_party/box2d/src/id_pool.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/id_pool.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/island.c.o -c /media/dapm/projects/pong/third_party/box2d/src/island.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/island.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/joint.c.o -c /media/dapm/projects/pong/third_party/box2d/src/joint.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/joint.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/manifold.c.o -c /media/dapm/projects/pong/third_party/box2d/src/manifold.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/manifold.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/math_functions.c.o -c /media/dapm/projects/pong/third_party/box2d/src/math_functions.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/math_functions.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/motor_joint.c.o -c /media/dapm/projects/pong/third_party/box2d/src/motor_joint.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/motor_joint.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/mover_joint.c.o -c /media/dapm/projects/pong/third_party/box2d/src/mover_joint.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/mover_joint.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/mover.c.o -c /media/dapm/projects/pong/third_party/box2d/src/mover.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/mover.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/parallel_for.c.o -c /media/dapm/projects/pong/third_party/box2d/src/parallel_for.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/parallel_for.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/physics_world.c.o -c /media/dapm/projects/pong/third_party/box2d/src/physics_world.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/physics_world.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/pogo_joint.c.o -c /media/dapm/projects/pong/third_party/box2d/src/pogo_joint.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/pogo_joint.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/prismatic_joint.c.o -c /media/dapm/projects/pong/third_party/box2d/src/prismatic_joint.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/prismatic_joint.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/recording.c.o -c /media/dapm/projects/pong/third_party/box2d/src/recording.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/recording.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/replay.c.o -c /media/dapm/projects/pong/third_party/box2d/src/replay.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/replay.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/revolute_joint.c.o -c /media/dapm/projects/pong/third_party/box2d/src/revolute_joint.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/revolute_joint.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/scheduler.c.o -c /media/dapm/projects/pong/third_party/box2d/src/scheduler.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/scheduler.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/sensor.c.o -c /media/dapm/projects/pong/third_party/box2d/src/sensor.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/sensor.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/shape.c.o -c /media/dapm/projects/pong/third_party/box2d/src/shape.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/shape.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/snapshot.c.o -c /media/dapm/projects/pong/third_party/box2d/src/snapshot.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/snapshot.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/solver_set.c.o -c /media/dapm/projects/pong/third_party/box2d/src/solver_set.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/solver_set.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/solver.c.o -c /media/dapm/projects/pong/third_party/box2d/src/solver.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/solver.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/table.c.o -c /media/dapm/projects/pong/third_party/box2d/src/table.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/table.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/timer.c.o -c /media/dapm/projects/pong/third_party/box2d/src/timer.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/timer.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/types.c.o -c /media/dapm/projects/pong/third_party/box2d/src/types.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/types.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/weld_joint.c.o -c /media/dapm/projects/pong/third_party/box2d/src/weld_joint.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/weld_joint.c"
+},
+{
+  "directory": "/media/dapm/projects/pong/build/third_party/box2d/src",
+  "command": "/usr/bin/cc  -I/media/dapm/projects/pong/third_party/box2d/src/../include -I/media/dapm/projects/pong/build/third_party/box2d/src -I/media/dapm/projects/pong/third_party/box2d/src -O3 -fvisibility=hidden -ffp-contract=off -Wmissing-prototypes -Wall -Wextra -pedantic -Wno-unused-value -std=gnu17 -o CMakeFiles/box2d.dir/wheel_joint.c.o -c /media/dapm/projects/pong/third_party/box2d/src/wheel_joint.c",
+  "file": "/media/dapm/projects/pong/third_party/box2d/src/wheel_joint.c"
 }
 ]

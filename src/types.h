@@ -122,22 +122,20 @@ typedef struct
   int          winner;
 } SimulationState;
 
-/*
-   only data required by the renderer
-   this is not the complete game state
-*/
-typedef struct
-{
+typedef struct {
+  bool active;
+  float x;
+  float y;
+} RenderBall;
+
+typedef struct {
   float player_x;
   float player_y;
   float enemy_x;
   float enemy_y;
-  int ball_active[MAX_BALLS];
-  float ball_x[MAX_BALLS];
-  float ball_y[MAX_BALLS];
- 
+  RenderBall balls[MAX_BALLS];
+  int ball_count;
 } RenderSnapshot;
-
 
 typedef struct {
   int enabled;
