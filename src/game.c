@@ -50,25 +50,20 @@ state->enemy.speed =
 void
 game_init(SimulationState *state)
 {
-memset(state, 0, sizeof(*state));
+  memset(state, 0, sizeof(*state));
+  state->mode = GAME_TITLE;
+  reset_paddles(state);
 
-state->mode = GAME_TITLE;
-
-reset_paddles(state);
-
-balls_clear(&state->balls);
-particles_clear(&state->particles);
-powerups_clear(&state->powerups);
-
-simulation_init(state);
-
+  balls_clear(&state->balls);
+  particles_clear(&state->particles);
+  powerups_clear(&state->powerups);
+  simulation_init(state);
 }
 
 void
 game_start(SimulationState *state)
 {
     state->mode = GAME_PLAYING;
-
     state->game_time = 0.0f;
     state->winner = 0;
 
@@ -97,10 +92,6 @@ game_start(SimulationState *state)
     );
 }
 
-
-
-
-
 void
 game_update(
     SimulationState *state,
@@ -111,7 +102,6 @@ game_update(
     if (state->mode == GAME_TITLE) {
         if (input->start)
             game_start(state);
-
         return;
     }
 
@@ -129,33 +119,19 @@ game_update(
 
 void
 game_make_render_snapshot(
-const SimulationState *state,
-RenderSnapshot *snapshot
+  const SimulationState *state,
+  RenderSnapshot *snapshot
 )
 {
-snapshot->player_x =
-state->player.x;
+  snapshot->player_x = state->player.x;
+  snapshot->player_y = state->player.y;
+  snapshot->enemy_x = state->enemy.x;
+  snapshot->enemy_y = state->enemy.y;
 
-snapshot->player_y =
-    state->player.y;
-
-snapshot->enemy_x =
-    state->enemy.x;
-
-snapshot->enemy_y =
-    state->enemy.y;
-
-for (int i = 0; i < MAX_BALLS; ++i) {
-    snapshot->balls[i].active =
-        state->balls.slots[i].active;
-
-    snapshot->balls[i].x =
-        state->balls.x[i];
-
-    snapshot->balls[i].y =
-        state->balls.y[i];
+  for (int i = 0; i < MAX_BALLS; ++i) {
+    snapshot->balls[i].active = state->balls.slots[i].active;
+    snapshot->balls[i].x = state->balls.x[i];
+    snapshot->balls[i].y = state->balls.y[i];
+  }
 }
-
-}
-
 

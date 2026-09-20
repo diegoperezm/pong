@@ -243,25 +243,18 @@ create_static_box(
 
 
 static void
-sync_balls_to_physics(
-SimulationState *state
-)
+sync_balls_to_physics(SimulationState *state)
 {
-BallPool *balls =
-&state->balls;
+  BallPool *balls = &state->balls;
 
-for (int i = 0; i < MAX_BALLS; ++i) {
-
+  for (int i = 0; i < MAX_BALLS; ++i) {
     EntityHandle handle = {
-        .index = (uint32_t)i,
-        .generation =
-            balls->slots[i].generation
+        .index      = (uint32_t)i,
+        .generation = balls->slots[i].generation
     };
 
     if (!ball_is_valid(balls, handle)) {
-
         destroy_ball_body(i);
-
         continue;
     }
 
@@ -270,7 +263,6 @@ for (int i = 0; i < MAX_BALLS; ++i) {
      * game-side ball is newly created.
      */
     if (!b2Body_IsValid(ball_bodies[i])) {
-
         ball_bodies[i] =
             create_ball_body(
                 balls->x[i],
@@ -278,7 +270,6 @@ for (int i = 0; i < MAX_BALLS; ++i) {
                 balls->vx[i],
                 balls->vy[i]
             );
-
         continue;
     }
 
@@ -287,24 +278,18 @@ for (int i = 0; i < MAX_BALLS; ++i) {
      * FROM Box2D, so we don't overwrite
      * the Box2D transform here.
      */
-}
-
+  }
 }
 
 static void
-sync_physics_to_game(
-SimulationState *state
-)
+sync_physics_to_game(SimulationState *state)
 {
-BallPool *balls =
-&state->balls;
+  BallPool *balls = &state->balls;
 
-for (int i = 0; i < MAX_BALLS; ++i) {
-
+  for (int i = 0; i < MAX_BALLS; ++i) {
     EntityHandle handle = {
         .index = (uint32_t)i,
-        .generation =
-            balls->slots[i].generation
+        .generation = balls->slots[i].generation
     };
 
     if (!ball_is_valid(balls, handle))
@@ -313,15 +298,9 @@ for (int i = 0; i < MAX_BALLS; ++i) {
     if (!b2Body_IsValid(ball_bodies[i]))
         continue;
 
-    b2Vec2 position =
-        b2Body_GetPosition(
-            ball_bodies[i]
-        );
+    b2Vec2 position = b2Body_GetPosition(ball_bodies[i]);
 
-    b2Vec2 velocity =
-        b2Body_GetLinearVelocity(
-            ball_bodies[i]
-        );
+    b2Vec2 velocity = b2Body_GetLinearVelocity(ball_bodies[i]);
 
     /*
      * Box2D stores the ball CENTER.
@@ -352,30 +331,15 @@ for (int i = 0; i < MAX_BALLS; ++i) {
 /*
  * Paddles.
  */
-if (b2Body_IsValid(player_body)) {
+  if (b2Body_IsValid(player_body)) {
+    b2Vec2 position = b2Body_GetPosition(player_body);
+    state->player.y = M_TO_PX(position.y) - state->player.height * 0.5f;
+  }
 
-    b2Vec2 position =
-        b2Body_GetPosition(
-            player_body
-        );
-
-    state->player.y =
-        M_TO_PX(position.y)
-        - state->player.height * 0.5f;
-}
-
-
-if (b2Body_IsValid(enemy_body)) {
-
-    b2Vec2 position =
-        b2Body_GetPosition(
-            enemy_body
-        );
-
-    state->enemy.y =
-        M_TO_PX(position.y)
-        - state->enemy.height * 0.5f;
-}
+  if (b2Body_IsValid(enemy_body)) {
+    b2Vec2 position = b2Body_GetPosition( enemy_body);
+    state->enemy.y = M_TO_PX(position.y) - state->enemy.height * 0.5f;
+  }
 
 }
 
@@ -714,13 +678,13 @@ initialized = false;
 
 void
 simulation_update(
-SimulationState *state,
-const GameInput *input,
-float dt
+  SimulationState *state,
+  const GameInput *input,
+  float dt
 )
 {
-if (!initialized)
-return;
+  if (!initialized)
+    return;
 
 /*
  * Create/recreate physics bodies.
@@ -741,10 +705,7 @@ if (!b2Body_IsValid(enemy_body))
 /*
  * Game-side input/AI -> Box2D.
  */
-player_system(
-    state,
-    input
-);
+player_system(state, input);
 
 enemy_system(state);
 
