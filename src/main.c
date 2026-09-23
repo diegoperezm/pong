@@ -1,5 +1,4 @@
 #include "raylib.h"
-
 #include "game.h"
 #include "input.h"
 #include "render.h"
@@ -9,36 +8,36 @@
 int
 main(void)
 {
-InitWindow(
-SCREEN_WIDTH,
-SCREEN_HEIGHT,
-"Pong"
-);
+  InitWindow(
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    "Pong"
+  );
 
-SetTargetFPS(60);
+  SetTargetFPS(60);
 
-SimulationState state;
-GameInput input;
+  SimulationState state;
+  GameInput input;
 
-RenderSnapshot previous = {0};
-RenderSnapshot current = {0};
+  RenderSnapshot previous = {0};
+  RenderSnapshot current  = {0};
 
-game_init(&state);
+  game_init(&state);
 
-game_make_render_snapshot(
+  game_make_render_snapshot(
     &state,
     &previous
-);
+  );
 
-game_make_render_snapshot(
+  game_make_render_snapshot(
     &state,
     &current
-);
+  );
 
 
-double accumulator = 0.0;
+  double accumulator = 0.0;
 
-while (!WindowShouldClose()) {
+  while (!WindowShouldClose()) {
     /*
      * Input is sampled once per rendered frame.
      */
@@ -65,12 +64,10 @@ while (!WindowShouldClose()) {
             &input,
             (float)SIM_DT
         );
-
         game_make_render_snapshot(
             &state,
             &current
         );
-
         accumulator -= SIM_DT;
     }
 
@@ -78,8 +75,7 @@ while (!WindowShouldClose()) {
      * Interpolation factor between the previous and current
      * simulation states.
      */
-    float alpha =
-        (float)(accumulator / SIM_DT);
+    float alpha = (float)(accumulator / SIM_DT);
 
     render_frame(
         &previous,
@@ -88,11 +84,9 @@ while (!WindowShouldClose()) {
     );
 }
 
-simulation_shutdown();
+  simulation_shutdown();
+  CloseWindow();
 
-CloseWindow();
-
-return 0;
-
+  return 0;
 }
 

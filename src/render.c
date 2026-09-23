@@ -1,155 +1,332 @@
 #include "render.h"
-
 #include "raylib.h"
-
 #include "game.h"
 
 static float
-lerp_float(float a, float b, float t)
+lerp_float(
+  float a,
+  float b,
+  float t)
 {
-return a + (b - a) * t;
+  return a + (b - a) * t;
 }
 
+
+// COURT
+static void
+draw_court(void)
+{
+  DrawRectangleLines(
+  (int)COURT_LEFT,
+  (int)COURT_TOP,
+  (int)(COURT_RIGHT - COURT_LEFT),
+  (int)(COURT_BOTTOM - COURT_TOP),
+  WHITE
+  );
+
+  for (int y = (int)COURT_TOP; y < (int)COURT_BOTTOM; y += 20) {
+   DrawRectangle(
+     SCREEN_WIDTH / 2 - 2,
+     y,
+     4,
+     10,
+     WHITE
+   );
+ }
+}
+
+// PADDLES
+static void
+draw_paddles(
+  const RenderSnapshot *previous,
+  const RenderSnapshot *current,
+  float alpha
+)
+{
+  float player_x = lerp_float(
+  previous->player_x,
+  current->player_x,
+  alpha
+  );
+
+  float player_y = lerp_float(
+    previous->player_y,
+    current->player_y,
+    alpha
+  );
+
+  float enemy_x = lerp_float(
+    previous->enemy_x,
+    current->enemy_x,
+    alpha
+  );
+
+  float enemy_y = lerp_float(
+    previous->enemy_y,
+    current->enemy_y,
+    alpha
+  );
+
+  DrawRectangle(
+    (int)player_x,
+    (int)player_y,
+    (int)PADDLE_WIDTH,
+    (int)PADDLE_HEIGHT,
+    WHITE
+  );
+
+  DrawRectangle(
+    (int)enemy_x,
+    (int)enemy_y,
+    (int)PADDLE_WIDTH,
+    (int)PADDLE_HEIGHT,
+    WHITE
+  );
+}
+
+// BALLS
+
+static void
+draw_balls(
+  const RenderSnapshot *previous,
+  const RenderSnapshot *current,
+  float alpha
+)
+{
+  for (int i = 0; i < MAX_BALLS; ++i) {
+    if (!current->balls[i].active)
+      continue;
+
+  float x = current->balls[i].x;
+  float y = current->balls[i].y;
+
+  if (previous->balls[i].active) {
+    x = lerp_float(
+      previous->balls[i].x,
+      current->balls[i].x,
+      alpha
+      );
+
+    y = lerp_float(
+      previous->balls[i].y,
+      current->balls[i].y,
+      alpha
+      );
+ }
+
+  DrawRectangle(
+    (int)x,
+    (int)y,
+    (int)BALL_SIZE,
+    (int)BALL_SIZE,
+    WHITE
+  );
+  }
+}
+
+// PARTICLES
+static void
+draw_particles(const RenderSnapshot *snapshot)
+{
+  for (int i = 0; i < MAX_PARTICLES; ++i) {
+    if (!snapshot->particles[i].active)
+    continue;
+
+    float life =
+    snapshot->particles[i].lifetime /
+    snapshot->particles[i].max_lifetime;
+
+    int alpha = (int)(life * 255.0f);
+
+    if (alpha < 0) 
+      alpha = 0;
+    
+    if (alpha > 255) 
+      alpha = 255;
+  
+    Color color = {
+      255,
+      255,
+      255,
+     (unsigned char)alpha
+   };
+  
+  DrawRectangle(
+    (int)snapshot->particles[i].x,
+    (int)snapshot->particles[i].y,
+    (int)snapshot->particles[i].size,
+    (int)snapshot->particles[i].size,
+    color
+  );
+  }
+}
+
+// POWERUPS
+static void
+draw_powerups(const RenderSnapshot *snapshot)
+{
+  for (int i = 0; i < MAX_POWERUPS; ++i) {
+   if (!snapshot->powerups[i].active)
+     continue;
+   
+   Color color;
+   
+   if (snapshot->powerups[i].type == POWERUP_SPEED)
+     color = RED;
+   else
+     color = BLUE;
+   
+   DrawRectangle(
+     (int)snapshot->powerups[i].x,
+     (int)snapshot->powerups[i].y,
+     (int)POWERUP_SIZE,
+     (int)POWERUP_SIZE,
+     color
+   );
+  }
+}
+
+// SCORE
+static void
+draw_score(const RenderSnapshot *snapshot)
+{
+  DrawText(
+    TextFormat("%d", snapshot->player_score),
+    300,
+    30,
+    40,
+    WHITE
+  );
+  
+  DrawText(
+    TextFormat("%d", snapshot->enemy_score),
+    480,
+    30,
+    40,
+    WHITE
+  );
+}
+
+
+// SCREENS
+static void
+draw_title(void)
+{
+  DrawText(
+    "PONG",
+    350,
+    120,
+    40,
+    WHITE
+  );
+  
+  DrawText(
+    "PRESS ENTER",
+    315,
+    180,
+    20,
+    WHITE
+   );
+}
+
+static void
+draw_pause(void)
+{
+  DrawText(
+    "PAUSED",
+    350,
+    200,
+    25,
+    WHITE
+  );
+}
+
+static void
+draw_game_over(const RenderSnapshot *snapshot)
+{
+  const char *text = snapshot->winner == 1 ? "YOU WIN" : "YOU LOSE";
+
+  DrawText(
+    text,
+    335,
+    120,
+    30,
+    WHITE
+  );
+  
+  DrawText(
+    TextFormat(
+      "%d - %d",
+      snapshot->player_score,
+      snapshot->enemy_score
+      ),
+      365,
+      170,
+      20,
+      WHITE
+  );
+  
+  DrawText(
+    "PRESS ENTER",
+    325,
+    210,
+    20,
+    WHITE
+    );
+}
+
+
+// LIFECYCLE
 void
 render_init(void)
 {
-/*
-* Rendering currently uses raylib directly, so there is no
-* renderer-specific initialization.
-*/
 }
 
 void
 render_shutdown(void)
 {
-/*
-* No renderer-specific resources currently need to be released.
-*/
 }
 
+
+// MAIN RENDER
 void
 render_frame(
-    const RenderSnapshot *previous,
-    const RenderSnapshot *current,
-    float alpha
+  const RenderSnapshot *previous,
+  const RenderSnapshot *current,
+  float alpha
 )
 {
-    BeginDrawing();
-
-    ClearBackground(BLACK);
-
-    /*
-     * Court.
-     */
-    DrawRectangleLines(
-        (int)COURT_LEFT,
-        (int)COURT_TOP,
-        (int)(COURT_RIGHT - COURT_LEFT),
-        (int)(COURT_BOTTOM - COURT_TOP),
-        WHITE
-    );
-
-    /*
-     * Center line.
-     */
-    DrawLine(
-        SCREEN_WIDTH / 2,
-        (int)COURT_TOP,
-        SCREEN_WIDTH / 2,
-        (int)COURT_BOTTOM,
-        WHITE
-    );
-
-    /*
-     * Player paddle.
-     */
-    float player_x = lerp_float(
-        previous->player_x,
-        current->player_x,
-        alpha
-    );
-
-    float player_y = lerp_float(
-        previous->player_y,
-        current->player_y,
-        alpha
-    );
-
-    DrawRectangle(
-        (int)player_x,
-        (int)player_y,
-        (int)PADDLE_WIDTH,
-        (int)PADDLE_HEIGHT,
-        WHITE
-    );
-
-    /*
-     * Enemy paddle.
-     */
-    float enemy_x = lerp_float(
-        previous->enemy_x,
-        current->enemy_x,
-        alpha
-    );
-
-    float enemy_y = lerp_float(
-        previous->enemy_y,
-        current->enemy_y,
-        alpha
-    );
-
-    DrawRectangle(
-        (int)enemy_x,
-        (int)enemy_y,
-        (int)PADDLE_WIDTH,
-        (int)PADDLE_HEIGHT,
-        WHITE
-    );
-
-    /*
-     * Balls.
-     *
-     * Ball slots are stable. Iterate over the entire pool
-     * and use the active flag to determine which slots exist.
-     */
-    for (int i = 0; i < MAX_BALLS; ++i) {
-
-        if (!current->balls[i].active)
-            continue;
-
-        float x = current->balls[i].x;
-        float y = current->balls[i].y;
-
-        /*
-         * Interpolate only when this same slot was active
-         * in the previous snapshot.
-         */
-        if (previous->balls[i].active) {
-
-            x = lerp_float(
-                previous->balls[i].x,
-                current->balls[i].x,
-                alpha
-            );
-
-            y = lerp_float(
-                previous->balls[i].y,
-                current->balls[i].y,
-                alpha
-            );
-        }
-
-        DrawRectangle(
-            (int)x,
-            (int)y,
-            (int)BALL_SIZE,
-            (int)BALL_SIZE,
-            WHITE
-        );
-    }
-
-    EndDrawing();
+  BeginDrawing();
+  ClearBackground(BLACK);
+  
+  switch (current->mode) {
+    case GAME_TITLE:
+      draw_title();
+      break;
+    
+    case GAME_PLAYING:
+      draw_court();
+      draw_powerups(current);
+      draw_paddles(previous, current, alpha);
+      draw_balls(previous, current, alpha);
+      draw_particles(current);
+      draw_score(current);
+      break;
+    
+    case GAME_PAUSED:
+      draw_court();
+      draw_powerups(current);
+      draw_paddles(previous, current, alpha);
+      draw_balls(previous, current, alpha);
+      draw_particles(current);
+      draw_score(current);
+      draw_pause();
+      break;
+    
+    case GAME_OVER:
+      draw_game_over(current);
+      break;
+ }
+  
+  EndDrawing();
 }
-
-
-

@@ -3,7 +3,9 @@
 
 #include "types.h"
 
-void input_sample(GameInput *input);
+void input_sample(
+  GameInput *input
+);
 
 #endif
 

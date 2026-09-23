@@ -4,17 +4,16 @@
 #include "log.h"
 
 
-/* ============================================================
- * BALLS
- * ============================================================ */
+// ============================================================
+//  BALLS
+//  ============================================================ 
 
 void
 balls_clear(
-    BallPool *balls
+  BallPool *balls
 )
 {
     for (int i = 0; i < MAX_BALLS; ++i) {
-
         balls->slots[i].active = false;
 
         /*
@@ -36,15 +35,14 @@ balls_clear(
 
 EntityHandle
 ball_create(
-    BallPool *balls,
-    float x,
-    float y,
-    float vx,
-    float vy
+  BallPool *balls,
+  float x,
+  float y,
+  float vx,
+  float vy
 )
 {
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
-
         if (balls->slots[i].active)
             continue;
 
@@ -56,8 +54,7 @@ ball_create(
         balls->vx[i] = vx;
         balls->vy[i] = vy;
 
-        balls->speed[i] =
-            sqrtf(vx * vx + vy * vy);
+        balls->speed[i] = sqrtf(vx * vx + vy * vy);
 
         LOG_ENTITY(
             "ball created: slot=%u gen=%u x=%.1f y=%.1f",
@@ -83,19 +80,17 @@ ball_create(
 
 bool
 ball_is_valid(
-    const BallPool *balls,
-    EntityHandle handle
+  const BallPool *balls,
+  EntityHandle handle
 )
 {
     if (handle.index >= MAX_BALLS)
         return false;
 
-    const Slot *slot =
-        &balls->slots[handle.index];
+    const Slot *slot = &balls->slots[handle.index];
 
     return
-        slot->active &&
-        slot->generation == handle.generation;
+        slot->active && slot->generation == handle.generation;
 }
 
 
@@ -126,17 +121,16 @@ ball_destroy(
 }
 
 
-/* ============================================================
- * PARTICLES
- * ============================================================ */
+// ============================================================
+// PARTICLES
+// ============================================================ 
 
 void
 particles_clear(
-    ParticlePool *particles
+  ParticlePool *particles
 )
 {
     for (int i = 0; i < MAX_PARTICLES; ++i) {
-
         particles->active[i] = 0;
 
         particles->x[i] = 0.0f;
@@ -163,43 +157,31 @@ void
 )
 {
     for (int n = 0; n < 20; ++n) {
-
         int slot = -1;
 
-        /*
-         * Find a free particle slot.
-         */
+        //  Find a free particle slot.
         for (int i = 0; i < MAX_PARTICLES; ++i) {
-
             if (!particles->active[i]) {
                 slot = i;
                 break;
             }
         }
 
-        /*
-         * Pool is full.
-         */
+        //  Pool is full.
         if (slot < 0)
             return;
 
-        float angle =
-            (float)GetRandomValue(0, 359) *
-            (PI / 180.0f);
+        float angle = (float)GetRandomValue(0, 359) * (PI / 180.0f);
 
-        float speed =
-            (float)GetRandomValue(50, 180);
+        float speed = (float)GetRandomValue(50, 180);
 
         particles->active[slot] = 1;
 
         particles->x[slot] = x;
         particles->y[slot] = y;
 
-        particles->vx[slot] =
-            cosf(angle) * speed;
-
-        particles->vy[slot] =
-            sinf(angle) * speed;
+        particles->vx[slot] = cosf(angle) * speed;
+        particles->vy[slot] = sinf(angle) * speed;
 
         particles->max_lifetime[slot] =
             0.25f +

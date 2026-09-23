@@ -70,16 +70,14 @@ typedef struct
 
 typedef struct 
 {
-  int active[MAX_PARTICLES];
-  int x[MAX_PARTICLES];
-  int y[MAX_PARTICLES];
-  int vx[MAX_PARTICLES];
-  int vy[MAX_PARTICLES];
-
+  int   active[MAX_PARTICLES];
+  int   x[MAX_PARTICLES];
+  int   y[MAX_PARTICLES];
+  int   vx[MAX_PARTICLES];
+  int   vy[MAX_PARTICLES];
   float lifetime[MAX_PARTICLES];
   float max_lifetime[MAX_PARTICLES];
   float size[MAX_PARTICLES];
-
 } ParticlePool;
 
 // Power-ups
@@ -92,15 +90,12 @@ typedef enum
 // Power-up pool
 typedef struct 
 {
-
   int         active[MAX_POWERUPS];
   float       x[MAX_POWERUPS];
   float       y[MAX_POWERUPS];
   PowerupType type[MAX_POWERUPS];
   float       lifetime[MAX_POWERUPS];
-
 } PowerupPool;
-
 
 /*
    Complete simulation state
@@ -123,30 +118,55 @@ typedef struct
 } SimulationState;
 
 typedef struct {
+  int   enabled;
+  int   show_collisions;
+  int   show_velocity;
+  float frame_time;
+  float fps;
+  int   ball_count;
+  int   particle_count;
+  int   powerup_count;
+} DebugState;
+
+
+typedef struct {
   bool active;
   float x;
   float y;
 } RenderBall;
 
 typedef struct {
-  float player_x;
-  float player_y;
-  float enemy_x;
-  float enemy_y;
-  RenderBall balls[MAX_BALLS];
-  int ball_count;
-} RenderSnapshot;
+  bool active;
+  float x;
+  float y;
+  float lifetime;
+  float max_lifetime;
+  float size;
+} RenderParticle;
 
 typedef struct {
-  int enabled;
-  int show_collisions;
-  int show_velocity;
-  float frame_time;
-  float fps;
-  int ball_count;
-  int particle_count;
-  int powerup_count;
-} DebugState;
+  bool active;
+  float x;
+  float y;
+  PowerupType type;
+} RenderPowerup;
 
+typedef struct {
+  float          player_x;
+  float          player_y;
+  float          enemy_x;
+  float          enemy_y;
+  RenderBall     balls[MAX_BALLS];
+  int            ball_count;
+  RenderParticle particles[MAX_PARTICLES];
+  RenderPowerup  powerups[MAX_POWERUPS];
+  int            player_score;
+  int            enemy_score;
+  GameMode       mode;
+  int            winner;
+} RenderSnapshot;
 
 #endif
+
+
+

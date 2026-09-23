@@ -3,12 +3,20 @@
 
 #include "types.h"
 
-void game_init(SimulationState *state);
-void game_start(SimulationState *state);
+void
+game_init(
+  SimulationState* state
+);
+
+void 
+game_start(
+  SimulationState*state
+);
+
 void game_update(
-    SimulationState *state,
-    const GameInput *input,
-    float dt
+  SimulationState *state,
+  const GameInput *input,
+  float dt
 );
 
 // Copy ONLY rendering-relevant simulation data.

@@ -3,13 +3,22 @@
 
 #include "types.h"
 
+void
+render_init(
+void
+);
 
-void render_init(void);
-void render_shutdown(void);
+void
+render_shutdown(
+void
+);
 
-void render_frame(
+void
+render_frame(
 const RenderSnapshot *previous,
 const RenderSnapshot *current,
-float alpha);
+float alpha
+);
 
 #endif
+
