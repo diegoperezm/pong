@@ -50,7 +50,6 @@ ball_create(
 
         balls->x[i] = x;
         balls->y[i] = y;
-
         balls->vx[i] = vx;
         balls->vy[i] = vy;
 

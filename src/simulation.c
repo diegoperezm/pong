@@ -1,247 +1,207 @@
 #include "simulation.h"
-
 #include "entities.h"
 #include "log.h"
-
 #include <math.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #define PHYSICS_SCALE 100.0f
-
 #define PX_TO_M(x) ((x) / PHYSICS_SCALE)
 #define M_TO_PX(x) ((x) * PHYSICS_SCALE)
+#define BALL_ANGLE_DEGREES 30.0f
+#define PI 3.14159265359
 
 static b2WorldId world;
+static b2BodyId  player_body;
+static b2BodyId  enemy_body;
+static b2BodyId  ball_bodies[MAX_BALLS];
+static bool      initialized = false;
 
-static b2BodyId player_body;
-static b2BodyId enemy_body;
 
-static b2BodyId ball_bodies[MAX_BALLS];
-
-static bool initialized = false;
-
-/* ============================================================
-
-* HELPERS
-* ============================================================
-  */
-
+// HELPERS
 static b2Vec2
 pixel_to_meter(float x, float y)
 {
-return (b2Vec2){
-PX_TO_M(x),
-PX_TO_M(y)
-};
+  return (b2Vec2){
+    PX_TO_M(x),
+    PX_TO_M(y)
+  };
 }
 
 static void
 destroy_ball_body(int index)
 {
-if (!b2Body_IsValid(ball_bodies[index]))
-return;
+  if (!b2Body_IsValid(ball_bodies[index]))
+    return;
 
-b2DestroyBody(ball_bodies[index]);
-
-ball_bodies[index] = b2_nullBodyId;
-
+  b2DestroyBody(ball_bodies[index]);
+  ball_bodies[index] = b2_nullBodyId;
 }
 
 static void
 destroy_paddle_bodies(void)
 {
-if (b2Body_IsValid(player_body)) {
-b2DestroyBody(player_body);
-player_body = b2_nullBodyId;
+  if (b2Body_IsValid(player_body)) {
+    b2DestroyBody(player_body);
+    player_body = b2_nullBodyId;
+  }
+
+  if (b2Body_IsValid(enemy_body)) {
+        b2DestroyBody(enemy_body);
+        enemy_body = b2_nullBodyId;
+  }
 }
 
-if (b2Body_IsValid(enemy_body)) {
-    b2DestroyBody(enemy_body);
-    enemy_body = b2_nullBodyId;
-}
 
-}
-
-/* ============================================================
-
-* BOX2D BODIES
-* ============================================================
-  */
+// BOX2D BODIES
 
 static b2BodyId
 create_static_box(
-float x,
-float y,
-float width,
-float height
+  float x,
+  float y,
+  float width,
+  float height
 )
 {
-b2BodyDef body_def = b2DefaultBodyDef();
+  b2BodyDef body_def = b2DefaultBodyDef();
+  
+  body_def.type = b2_staticBody;
+  body_def.position = pixel_to_meter(
+      x + width * 0.5f,
+      y + height * 0.5f
+  );
+  
+  b2BodyId body        = b2CreateBody(world, &body_def);
+  b2ShapeDef shape_def = b2DefaultShapeDef();
 
-body_def.type = b2_staticBody;
-body_def.position = pixel_to_meter(
-    x + width * 0.5f,
-    y + height * 0.5f
-);
-
-b2BodyId body =
-    b2CreateBody(world, &body_def);
-
-b2ShapeDef shape_def =
-    b2DefaultShapeDef();
-
-shape_def.material.friction = 0.0f;
-shape_def.material.restitution = 1.0f;
-
-b2Polygon box =
-    b2MakeBox(
-        PX_TO_M(width * 0.5f),
-        PX_TO_M(height * 0.5f)
-    );
-
-b2CreatePolygonShape(
-    body,
-    &shape_def,
-    &box
-);
-
-return body;
+  shape_def.material.friction = 0.0f;
+  shape_def.material.restitution = 1.0f;
+  
+  b2Polygon box =
+      b2MakeBox(
+          PX_TO_M(width * 0.5f),
+          PX_TO_M(height * 0.5f)
+      );
+  
+  b2CreatePolygonShape(
+      body,
+      &shape_def,
+      &box
+  );
+  
+  return body;
 
 }
 
 static b2BodyId
 create_paddle_body(
-const Paddle *paddle
+  const Paddle *paddle
 )
 {
-b2BodyDef body_def =
-b2DefaultBodyDef();
-
-body_def.type = b2_kinematicBody;
-
-body_def.position =
-    pixel_to_meter(
-        paddle->x + paddle->width * 0.5f,
-        paddle->y + paddle->height * 0.5f
-    );
-
-
-b2BodyId body =
-    b2CreateBody(world, &body_def);
-
-b2ShapeDef shape_def =
-    b2DefaultShapeDef();
-
-shape_def.material.friction = 0.0f;
-shape_def.material.restitution = 1.0f;
-
-b2Polygon box =
-    b2MakeBox(
-        PX_TO_M(paddle->width * 0.5f),
-        PX_TO_M(paddle->height * 0.5f)
-    );
-
-b2CreatePolygonShape(
-    body,
-    &shape_def,
-    &box
-);
-
-return body;
-
+  b2BodyDef body_def = b2DefaultBodyDef();
+  body_def.type = b2_kinematicBody;
+  
+  body_def.position =
+      pixel_to_meter(
+          paddle->x + paddle->width * 0.5f,
+          paddle->y + paddle->height * 0.5f
+      );
+  
+  
+  b2BodyId body = b2CreateBody(world, &body_def);
+  b2ShapeDef shape_def = b2DefaultShapeDef();
+  
+  shape_def.material.friction = 0.0f;
+  shape_def.material.restitution = 1.0f;
+  
+  b2Polygon box =
+      b2MakeBox(
+          PX_TO_M(paddle->width * 0.5f),
+          PX_TO_M(paddle->height * 0.5f)
+      );
+  
+  b2CreatePolygonShape(
+      body,
+      &shape_def,
+      &box
+  );
+  return body;
 }
 
 static b2BodyId
 create_ball_body(
-float x,
-float y,
-float vx,
-float vy
+  float x,
+  float y,
+  float vx,
+  float vy
 )
 {
-b2BodyDef body_def =
-b2DefaultBodyDef();
-
-body_def.type = b2_dynamicBody;
-
-body_def.position =
-    pixel_to_meter(
-        x + BALL_SIZE * 0.5f,
-        y + BALL_SIZE * 0.5f
-    );
-
-body_def.isBullet = true;
-body_def.enableSleep = false;
-
-b2BodyId body =
-    b2CreateBody(world, &body_def);
-
-b2ShapeDef shape_def =
-    b2DefaultShapeDef();
-
-shape_def.density = 1.0f;
-shape_def.material.friction = 0.0f;
-shape_def.material.restitution = 1.0f;
-
-b2Circle circle = {
-    .center = {0.0f, 0.0f},
-    .radius = PX_TO_M(BALL_SIZE * 0.5f)
-};
-
-b2CreateCircleShape(
-    body,
-    &shape_def,
-    &circle
-);
-
-b2Body_SetLinearVelocity(
-    body,
-    pixel_to_meter(vx, vy)
-);
-
-return body;
+  b2BodyDef body_def =
+  b2DefaultBodyDef();
+  
+  body_def.type = b2_dynamicBody;
+  body_def.position =
+      pixel_to_meter(
+          x + BALL_SIZE * 0.5f,
+          y + BALL_SIZE * 0.5f
+      );
+  
+  body_def.isBullet    = true;
+  body_def.enableSleep = false;
+  
+  b2BodyId body = b2CreateBody(world, &body_def);
+  b2ShapeDef shape_def = b2DefaultShapeDef();
+  
+  shape_def.density              = 1.0f;
+  shape_def.material.friction    = 0.0f;
+  shape_def.material.restitution = 1.0f;
+  
+  b2Circle circle = {
+      .center = {0.0f, 0.0f},
+      .radius = PX_TO_M(BALL_SIZE * 0.5f)
+  };
+  
+  b2CreateCircleShape(
+      body,
+      &shape_def,
+      &circle
+  );
+  
+  b2Body_SetLinearVelocity(
+      body,
+      pixel_to_meter(vx, vy)
+  );
+  
+  return body;
 
 }
 
-/* ============================================================
-
-* WORLD
-* ============================================================
-  */
+// WORLD
 
 static void
 create_walls(void)
 {
-/*
-* Top wall.
-*/
-create_static_box(
-COURT_LEFT,
-COURT_TOP - 10.0f,
-COURT_RIGHT - COURT_LEFT,
-10.0f
-);
+
+// Top wall.
+  create_static_box(
+     COURT_LEFT,
+     COURT_TOP - 10.0f,
+     COURT_RIGHT - COURT_LEFT,
+     10.0f
+  );
 
 /*
  * Bottom wall.
  */
-create_static_box(
-    COURT_LEFT,
-    COURT_BOTTOM,
-    COURT_RIGHT - COURT_LEFT,
-    10.0f
-);
-
+   create_static_box(
+     COURT_LEFT,
+     COURT_BOTTOM,
+     COURT_RIGHT - COURT_LEFT,
+     10.0f
+   );
 }
 
-/* ============================================================
-
-* SYNCHRONIZATION
-* ============================================================
-*/
-
-
-
+// SYNCHRONIZATION
 static void
 sync_balls_to_physics(SimulationState *state)
 {
@@ -299,34 +259,18 @@ sync_physics_to_game(SimulationState *state)
         continue;
 
     b2Vec2 position = b2Body_GetPosition(ball_bodies[i]);
-
     b2Vec2 velocity = b2Body_GetLinearVelocity(ball_bodies[i]);
 
     /*
      * Box2D stores the ball CENTER.
      * The game stores its TOP-LEFT.
      */
-    balls->x[i] =
-        M_TO_PX(position.x)
-        - BALL_SIZE * 0.5f;
-
-    balls->y[i] =
-        M_TO_PX(position.y)
-        - BALL_SIZE * 0.5f;
-
-    balls->vx[i] =
-        M_TO_PX(velocity.x);
-
-    balls->vy[i] =
-        M_TO_PX(velocity.y);
-
-    balls->speed[i] =
-        sqrtf(
-            balls->vx[i] * balls->vx[i] +
-            balls->vy[i] * balls->vy[i]
-        );
+    balls->x[i]     = M_TO_PX(position.x) - BALL_SIZE * 0.5f;
+    balls->y[i]     = M_TO_PX(position.y) - BALL_SIZE * 0.5f;
+    balls->vx[i]    = M_TO_PX(velocity.x);
+    balls->vy[i]    = M_TO_PX(velocity.y);
+    balls->speed[i] = sqrtf( balls->vx[i] * balls->vx[i] + balls->vy[i] * balls->vy[i]);
 }
-
 
 /*
  * Paddles.
@@ -545,23 +489,28 @@ particles_spawn(
 }
 
 
-if (active_balls == 0) {
+  if (active_balls == 0) {
+    float angle = 30.0f * (PI / 180.0f);
+    float direction =
+        (state->player.score > state->enemy.score)
+            ? -1.0f
+            : 1.0f;
+
+    float vx =
+        cosf(angle) *
+        INITIAL_BALL_SPEED *
+        direction;
+
+    float vy =
+        sinf(angle) *
+        INITIAL_BALL_SPEED;
 
     ball_create(
         balls,
-
-        SCREEN_WIDTH / 2.0f
-            - BALL_SIZE / 2.0f,
-
-        SCREEN_HEIGHT / 2.0f
-            - BALL_SIZE / 2.0f,
-
-        (state->player.score >
-         state->enemy.score)
-            ? -INITIAL_BALL_SPEED
-            : INITIAL_BALL_SPEED,
-
-        100.0f
+        SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
+        SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
+        vx,
+        vy
     );
 }
 

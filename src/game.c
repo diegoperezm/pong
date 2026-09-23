@@ -46,13 +46,18 @@ game_start(SimulationState *state)
   state->powerup_timer = 0.0f;
   simulation_reset(state);
 
+  float angle = 30.0f * (3.14159265359f / 180.0f);
+  float vx    = cosf(angle) * INITIAL_BALL_SPEED;
+  float vy    = sinf(angle) * INITIAL_BALL_SPEED;
+   
   ball_create(
-    &state->balls,
-    SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
-    SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
-    INITIAL_BALL_SPEED,
-    100.0f
-  );
+       &state->balls,
+       SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
+       SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
+       vx,
+       vy
+   );
+
 }
 
 void
