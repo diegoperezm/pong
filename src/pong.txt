@@ -661,13 +661,16 @@ balls_clear(
 
 EntityHandle
 ball_create(
-  BallPool *balls,
+  BallPool* balls,
   float x,
   float y,
-  float vx,
-  float vy
+  float direction
 )
 {
+  float angle = 30.0f * (3.14159265359f / 180.0f);
+  float vx    = cosf(angle) * INITIAL_BALL_SPEED;
+  float vy    = sinf(angle) * INITIAL_BALL_SPEED;
+ 
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
         if (balls->slots[i].active)
             continue;
@@ -676,7 +679,6 @@ ball_create(
 
         balls->x[i] = x;
         balls->y[i] = y;
-
         balls->vx[i] = vx;
         balls->vy[i] = vy;
 
@@ -939,9 +941,7 @@ powerups_update(
 game.c
 
 #include "game.h"
-
 #include <string.h>
-
 #include "entities.h"
 #include "simulation.h"
 
@@ -953,7 +953,7 @@ reset_paddles(SimulationState *state)
   state->player.width  = PADDLE_WIDTH;
   state->player.height = PADDLE_HEIGHT;
   state->player.speed  = PLAYER_SPEED;
-
+  
   state->enemy.x      = COURT_RIGHT - PADDLE_WIDTH - 20.0f;
   state->enemy.y      = SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
   state->enemy.width  = PADDLE_WIDTH;
@@ -964,91 +964,107 @@ reset_paddles(SimulationState *state)
 void
 game_init(SimulationState *state)
 {
-  memset(state, 0, sizeof(*state));
+  memset( state, 0, sizeof(*state));
   state->mode = GAME_TITLE;
   reset_paddles(state);
-
   balls_clear(&state->balls);
-  particles_clear(&state->particles);
-  powerups_clear(&state->powerups);
-  simulation_init(state);
+  particles_clear( &state->particles);
+  powerups_clear( &state->powerups);
+  simulation_init(state); 
 }
 
 void
 game_start(SimulationState *state)
 {
-    state->mode = GAME_PLAYING;
-    state->game_time = 0.0f;
-    state->winner = 0;
+  state->mode = GAME_PLAYING;
+  state->game_time = 0.0f;
+  state->winner = 0;
 
-    reset_paddles(state);
+  reset_paddles(state);
+  balls_clear(&state->balls);
+  particles_clear(&state->particles);
+  powerups_clear(&state->powerups);
 
-    balls_clear(&state->balls);
-    particles_clear(&state->particles);
-    powerups_clear(&state->powerups);
+  state->powerup_timer = 0.0f;
+  simulation_reset(state);
 
-    state->powerup_timer = 0.0f;
+  
+  ball_create(
+       &state->balls,
+       SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
+       SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
+       INITIAL_BALL_SPEED
+   );
 
-    /*
-     * Remove any existing Box2D bodies from the previous game.
-     */
-    simulation_reset(state);
-
-    /*
-     * Create the first ball.
-     */
-    ball_create(
-        &state->balls,
-        SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
-        SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
-        INITIAL_BALL_SPEED,
-        100.0f
-    );
 }
 
 void
 game_update(
-    SimulationState *state,
-    const GameInput *input,
-    float dt
+  SimulationState *state,
+  const GameInput *input,
+  float dt
 )
 {
-    if (state->mode == GAME_TITLE) {
-        if (input->start)
-            game_start(state);
-        return;
-    }
-
-    if (state->mode != GAME_PLAYING)
-        return;
-
-    state->game_time += dt;
-
-    simulation_update(
-        state,
-        input,
-        dt
-    );
+  if (state->mode == GAME_TITLE) {
+    if (input->start)
+      game_start(state);
+  return;
+  }
+  
+  if (state->mode != GAME_PLAYING)
+    return;
+  
+  state->game_time += dt;
+  simulation_update(
+    state,
+    input,
+    dt
+  );
 }
 
 void
 game_make_render_snapshot(
-  const SimulationState *state,
-  RenderSnapshot *snapshot
+  const SimulationState* state,
+  RenderSnapshot* snapshot
 )
 {
-  snapshot->player_x = state->player.x;
-  snapshot->player_y = state->player.y;
-  snapshot->enemy_x = state->enemy.x;
-  snapshot->enemy_y = state->enemy.y;
+  snapshot->player_x     = state->player.x;
+  snapshot->player_y     = state->player.y;
+  snapshot->player_score = state->player.score;
 
+  snapshot->enemy_x      = state->enemy.x;
+  snapshot->enemy_y      = state->enemy.y;
+  snapshot->enemy_score  = state->enemy.score;
+  
+  snapshot->mode         = state->mode;
+  snapshot->winner       = state->winner;
+  snapshot->ball_count   = 0;
+  
   for (int i = 0; i < MAX_BALLS; ++i) {
     snapshot->balls[i].active = state->balls.slots[i].active;
-    snapshot->balls[i].x = state->balls.x[i];
-    snapshot->balls[i].y = state->balls.y[i];
+    snapshot->balls[i].x      = state->balls.x[i];
+    snapshot->balls[i].y      = state->balls.y[i];
+    
+    if (snapshot->balls[i].active)
+      snapshot->ball_count++;
+  }
+
+  for (int i = 0; i < MAX_PARTICLES; ++i) {
+    snapshot->particles[i].active       = state->particles.active[i];
+    snapshot->particles[i].x            = state->particles.x[i];
+    snapshot->particles[i].y            = state->particles.y[i];
+    snapshot->particles[i].lifetime     = state->particles.lifetime[i];
+    snapshot->particles[i].max_lifetime = state->particles.max_lifetime[i];
+    snapshot->particles[i].size         = state->particles.size[i];
+  }
+
+  for (int i = 0; i < MAX_POWERUPS; ++i) {
+     snapshot->powerups[i].active = state->powerups.active[i];
+     snapshot->powerups[i].x = state->powerups.x[i];
+     snapshot->powerups[i].y = state->powerups.y[i];
+     snapshot->powerups[i].type = state->powerups.type[i];
   }
 }
-
 
 
 input.c
@@ -1151,7 +1167,6 @@ log_message(
 main.c
 
 #include "raylib.h"
-
 #include "game.h"
 #include "input.h"
 #include "render.h"
@@ -1161,36 +1176,36 @@ main.c
 int
 main(void)
 {
-InitWindow(
-SCREEN_WIDTH,
-SCREEN_HEIGHT,
-"Pong"
-);
+  InitWindow(
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    "Pong"
+  );
 
-SetTargetFPS(60);
+  SetTargetFPS(60);
 
-SimulationState state;
-GameInput input;
+  SimulationState state;
+  GameInput input;
 
-RenderSnapshot previous = {0};
-RenderSnapshot current = {0};
+  RenderSnapshot previous = {0};
+  RenderSnapshot current  = {0};
 
-game_init(&state);
+  game_init(&state);
 
-game_make_render_snapshot(
+  game_make_render_snapshot(
     &state,
     &previous
-);
+  );
 
-game_make_render_snapshot(
+  game_make_render_snapshot(
     &state,
     &current
-);
+  );
 
 
-double accumulator = 0.0;
+  double accumulator = 0.0;
 
-while (!WindowShouldClose()) {
+  while (!WindowShouldClose()) {
     /*
      * Input is sampled once per rendered frame.
      */
@@ -1217,12 +1232,10 @@ while (!WindowShouldClose()) {
             &input,
             (float)SIM_DT
         );
-
         game_make_render_snapshot(
             &state,
             &current
         );
-
         accumulator -= SIM_DT;
     }
 
@@ -1230,8 +1243,7 @@ while (!WindowShouldClose()) {
      * Interpolation factor between the previous and current
      * simulation states.
      */
-    float alpha =
-        (float)(accumulator / SIM_DT);
+    float alpha = (float)(accumulator / SIM_DT);
 
     render_frame(
         &previous,
@@ -1240,12 +1252,10 @@ while (!WindowShouldClose()) {
     );
 }
 
-simulation_shutdown();
+  simulation_shutdown();
+  CloseWindow();
 
-CloseWindow();
-
-return 0;
-
+  return 0;
 }
 
 
@@ -1253,408 +1263,545 @@ return 0;
 render.c
 
 #include "render.h"
-
 #include "raylib.h"
-
 #include "game.h"
 
 static float
-lerp_float(float a, float b, float t)
+lerp_float(
+  float a,
+  float b,
+  float t)
 {
-return a + (b - a) * t;
+  return a + (b - a) * t;
 }
 
+
+// COURT
+static void
+draw_court(void)
+{
+  DrawRectangleLines(
+  (int)COURT_LEFT,
+  (int)COURT_TOP,
+  (int)(COURT_RIGHT - COURT_LEFT),
+  (int)(COURT_BOTTOM - COURT_TOP),
+  WHITE
+  );
+
+  for (int y = (int)COURT_TOP; y < (int)COURT_BOTTOM; y += 20) {
+   DrawRectangle(
+     SCREEN_WIDTH / 2 - 2,
+     y,
+     4,
+     10,
+     WHITE
+   );
+ }
+}
+
+// PADDLES
+static void
+draw_paddles(
+  const RenderSnapshot *previous,
+  const RenderSnapshot *current,
+  float alpha
+)
+{
+  float player_x = lerp_float(
+  previous->player_x,
+  current->player_x,
+  alpha
+  );
+
+  float player_y = lerp_float(
+    previous->player_y,
+    current->player_y,
+    alpha
+  );
+
+  float enemy_x = lerp_float(
+    previous->enemy_x,
+    current->enemy_x,
+    alpha
+  );
+
+  float enemy_y = lerp_float(
+    previous->enemy_y,
+    current->enemy_y,
+    alpha
+  );
+
+  DrawRectangle(
+    (int)player_x,
+    (int)player_y,
+    (int)PADDLE_WIDTH,
+    (int)PADDLE_HEIGHT,
+    WHITE
+  );
+
+  DrawRectangle(
+    (int)enemy_x,
+    (int)enemy_y,
+    (int)PADDLE_WIDTH,
+    (int)PADDLE_HEIGHT,
+    WHITE
+  );
+}
+
+// BALLS
+
+static void
+draw_balls(
+  const RenderSnapshot *previous,
+  const RenderSnapshot *current,
+  float alpha
+)
+{
+  for (int i = 0; i < MAX_BALLS; ++i) {
+    if (!current->balls[i].active)
+      continue;
+
+  float x = current->balls[i].x;
+  float y = current->balls[i].y;
+
+  if (previous->balls[i].active) {
+    x = lerp_float(
+      previous->balls[i].x,
+      current->balls[i].x,
+      alpha
+      );
+
+    y = lerp_float(
+      previous->balls[i].y,
+      current->balls[i].y,
+      alpha
+      );
+ }
+
+  DrawRectangle(
+    (int)x,
+    (int)y,
+    (int)BALL_SIZE,
+    (int)BALL_SIZE,
+    WHITE
+  );
+  }
+}
+
+// PARTICLES
+static void
+draw_particles(const RenderSnapshot *snapshot)
+{
+  for (int i = 0; i < MAX_PARTICLES; ++i) {
+    if (!snapshot->particles[i].active)
+    continue;
+
+    float life =
+    snapshot->particles[i].lifetime /
+    snapshot->particles[i].max_lifetime;
+
+    int alpha = (int)(life * 255.0f);
+
+    if (alpha < 0) 
+      alpha = 0;
+    
+    if (alpha > 255) 
+      alpha = 255;
+  
+    Color color = {
+      255,
+      255,
+      255,
+     (unsigned char)alpha
+   };
+  
+  DrawRectangle(
+    (int)snapshot->particles[i].x,
+    (int)snapshot->particles[i].y,
+    (int)snapshot->particles[i].size,
+    (int)snapshot->particles[i].size,
+    color
+  );
+  }
+}
+
+// POWERUPS
+static void
+draw_powerups(const RenderSnapshot *snapshot)
+{
+  for (int i = 0; i < MAX_POWERUPS; ++i) {
+   if (!snapshot->powerups[i].active)
+     continue;
+   
+   Color color;
+   
+   if (snapshot->powerups[i].type == POWERUP_SPEED)
+     color = RED;
+   else
+     color = BLUE;
+   
+   DrawRectangle(
+     (int)snapshot->powerups[i].x,
+     (int)snapshot->powerups[i].y,
+     (int)POWERUP_SIZE,
+     (int)POWERUP_SIZE,
+     color
+   );
+  }
+}
+
+// SCORE
+static void
+draw_score(const RenderSnapshot *snapshot)
+{
+  DrawText(
+    TextFormat("%d", snapshot->player_score),
+    300,
+    30,
+    40,
+    WHITE
+  );
+  
+  DrawText(
+    TextFormat("%d", snapshot->enemy_score),
+    480,
+    30,
+    40,
+    WHITE
+  );
+}
+
+
+// SCREENS
+static void
+draw_title(void)
+{
+  DrawText(
+    "PONG",
+    350,
+    120,
+    40,
+    WHITE
+  );
+  
+  DrawText(
+    "PRESS ENTER",
+    315,
+    180,
+    20,
+    WHITE
+   );
+}
+
+static void
+draw_pause(void)
+{
+  DrawText(
+    "PAUSED",
+    350,
+    200,
+    25,
+    WHITE
+  );
+}
+
+static void
+draw_game_over(const RenderSnapshot *snapshot)
+{
+  const char *text = snapshot->winner == 1 ? "YOU WIN" : "YOU LOSE";
+
+  DrawText(
+    text,
+    335,
+    120,
+    30,
+    WHITE
+  );
+  
+  DrawText(
+    TextFormat(
+      "%d - %d",
+      snapshot->player_score,
+      snapshot->enemy_score
+      ),
+      365,
+      170,
+      20,
+      WHITE
+  );
+  
+  DrawText(
+    "PRESS ENTER",
+    325,
+    210,
+    20,
+    WHITE
+    );
+}
+
+
+// LIFECYCLE
 void
 render_init(void)
 {
-/*
-* Rendering currently uses raylib directly, so there is no
-* renderer-specific initialization.
-*/
 }
 
 void
 render_shutdown(void)
 {
-/*
-* No renderer-specific resources currently need to be released.
-*/
 }
 
+
+// MAIN RENDER
 void
 render_frame(
-    const RenderSnapshot *previous,
-    const RenderSnapshot *current,
-    float alpha
+  const RenderSnapshot *previous,
+  const RenderSnapshot *current,
+  float alpha
 )
 {
-    BeginDrawing();
-
-    ClearBackground(BLACK);
-
-    /*
-     * Court.
-     */
-    DrawRectangleLines(
-        (int)COURT_LEFT,
-        (int)COURT_TOP,
-        (int)(COURT_RIGHT - COURT_LEFT),
-        (int)(COURT_BOTTOM - COURT_TOP),
-        WHITE
-    );
-
-    /*
-     * Center line.
-     */
-    DrawLine(
-        SCREEN_WIDTH / 2,
-        (int)COURT_TOP,
-        SCREEN_WIDTH / 2,
-        (int)COURT_BOTTOM,
-        WHITE
-    );
-
-    /*
-     * Player paddle.
-     */
-    float player_x = lerp_float(
-        previous->player_x,
-        current->player_x,
-        alpha
-    );
-
-    float player_y = lerp_float(
-        previous->player_y,
-        current->player_y,
-        alpha
-    );
-
-    DrawRectangle(
-        (int)player_x,
-        (int)player_y,
-        (int)PADDLE_WIDTH,
-        (int)PADDLE_HEIGHT,
-        WHITE
-    );
-
-    /*
-     * Enemy paddle.
-     */
-    float enemy_x = lerp_float(
-        previous->enemy_x,
-        current->enemy_x,
-        alpha
-    );
-
-    float enemy_y = lerp_float(
-        previous->enemy_y,
-        current->enemy_y,
-        alpha
-    );
-
-    DrawRectangle(
-        (int)enemy_x,
-        (int)enemy_y,
-        (int)PADDLE_WIDTH,
-        (int)PADDLE_HEIGHT,
-        WHITE
-    );
-
-    /*
-     * Balls.
-     *
-     * Ball slots are stable. Iterate over the entire pool
-     * and use the active flag to determine which slots exist.
-     */
-    for (int i = 0; i < MAX_BALLS; ++i) {
-
-        if (!current->balls[i].active)
-            continue;
-
-        float x = current->balls[i].x;
-        float y = current->balls[i].y;
-
-        /*
-         * Interpolate only when this same slot was active
-         * in the previous snapshot.
-         */
-        if (previous->balls[i].active) {
-
-            x = lerp_float(
-                previous->balls[i].x,
-                current->balls[i].x,
-                alpha
-            );
-
-            y = lerp_float(
-                previous->balls[i].y,
-                current->balls[i].y,
-                alpha
-            );
-        }
-
-        DrawRectangle(
-            (int)x,
-            (int)y,
-            (int)BALL_SIZE,
-            (int)BALL_SIZE,
-            WHITE
-        );
-    }
-
-    EndDrawing();
+  BeginDrawing();
+  ClearBackground(BLACK);
+  
+  switch (current->mode) {
+    case GAME_TITLE:
+      draw_title();
+      break;
+    
+    case GAME_PLAYING:
+      draw_court();
+      draw_powerups(current);
+      draw_paddles(previous, current, alpha);
+      draw_balls(previous, current, alpha);
+      draw_particles(current);
+      draw_score(current);
+      break;
+    
+    case GAME_PAUSED:
+      draw_court();
+      draw_powerups(current);
+      draw_paddles(previous, current, alpha);
+      draw_balls(previous, current, alpha);
+      draw_particles(current);
+      draw_score(current);
+      draw_pause();
+      break;
+    
+    case GAME_OVER:
+      draw_game_over(current);
+      break;
+ }
+  
+  EndDrawing();
 }
-
-
-
 
 
 simulation.c
 
 #include "simulation.h"
-
 #include "entities.h"
 #include "log.h"
-
 #include <math.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #define PHYSICS_SCALE 100.0f
-
 #define PX_TO_M(x) ((x) / PHYSICS_SCALE)
 #define M_TO_PX(x) ((x) * PHYSICS_SCALE)
+#define BALL_ANGLE_DEGREES 30.0f
+#define PI 3.14159265359
 
 static b2WorldId world;
+static b2BodyId  player_body;
+static b2BodyId  enemy_body;
+static b2BodyId  ball_bodies[MAX_BALLS];
+static bool      initialized = false;
 
-static b2BodyId player_body;
-static b2BodyId enemy_body;
 
-static b2BodyId ball_bodies[MAX_BALLS];
-
-static bool initialized = false;
-
-/* ============================================================
-
-* HELPERS
-* ============================================================
-  */
-
+// HELPERS
 static b2Vec2
 pixel_to_meter(float x, float y)
 {
-return (b2Vec2){
-PX_TO_M(x),
-PX_TO_M(y)
-};
+  return (b2Vec2){
+    PX_TO_M(x),
+    PX_TO_M(y)
+  };
 }
 
 static void
 destroy_ball_body(int index)
 {
-if (!b2Body_IsValid(ball_bodies[index]))
-return;
+  if (!b2Body_IsValid(ball_bodies[index]))
+    return;
 
-b2DestroyBody(ball_bodies[index]);
-
-ball_bodies[index] = b2_nullBodyId;
-
+  b2DestroyBody(ball_bodies[index]);
+  ball_bodies[index] = b2_nullBodyId;
 }
 
 static void
 destroy_paddle_bodies(void)
 {
-if (b2Body_IsValid(player_body)) {
-b2DestroyBody(player_body);
-player_body = b2_nullBodyId;
+  if (b2Body_IsValid(player_body)) {
+    b2DestroyBody(player_body);
+    player_body = b2_nullBodyId;
+  }
+
+  if (b2Body_IsValid(enemy_body)) {
+        b2DestroyBody(enemy_body);
+        enemy_body = b2_nullBodyId;
+  }
 }
 
-if (b2Body_IsValid(enemy_body)) {
-    b2DestroyBody(enemy_body);
-    enemy_body = b2_nullBodyId;
-}
 
-}
-
-/* ============================================================
-
-* BOX2D BODIES
-* ============================================================
-  */
+// BOX2D BODIES
 
 static b2BodyId
 create_static_box(
-float x,
-float y,
-float width,
-float height
+  float x,
+  float y,
+  float width,
+  float height
 )
 {
-b2BodyDef body_def = b2DefaultBodyDef();
+  b2BodyDef body_def = b2DefaultBodyDef();
+  
+  body_def.type = b2_staticBody;
+  body_def.position = pixel_to_meter(
+      x + width * 0.5f,
+      y + height * 0.5f
+  );
+  
+  b2BodyId body        = b2CreateBody(world, &body_def);
+  b2ShapeDef shape_def = b2DefaultShapeDef();
 
-body_def.type = b2_staticBody;
-body_def.position = pixel_to_meter(
-    x + width * 0.5f,
-    y + height * 0.5f
-);
-
-b2BodyId body =
-    b2CreateBody(world, &body_def);
-
-b2ShapeDef shape_def =
-    b2DefaultShapeDef();
-
-shape_def.material.friction = 0.0f;
-shape_def.material.restitution = 1.0f;
-
-b2Polygon box =
-    b2MakeBox(
-        PX_TO_M(width * 0.5f),
-        PX_TO_M(height * 0.5f)
-    );
-
-b2CreatePolygonShape(
-    body,
-    &shape_def,
-    &box
-);
-
-return body;
+  shape_def.material.friction = 0.0f;
+  shape_def.material.restitution = 1.0f;
+  
+  b2Polygon box =
+      b2MakeBox(
+          PX_TO_M(width * 0.5f),
+          PX_TO_M(height * 0.5f)
+      );
+  
+  b2CreatePolygonShape(
+      body,
+      &shape_def,
+      &box
+  );
+  
+  return body;
 
 }
 
 static b2BodyId
 create_paddle_body(
-const Paddle *paddle
+  const Paddle *paddle
 )
 {
-b2BodyDef body_def =
-b2DefaultBodyDef();
-
-body_def.type = b2_kinematicBody;
-
-body_def.position =
-    pixel_to_meter(
-        paddle->x + paddle->width * 0.5f,
-        paddle->y + paddle->height * 0.5f
-    );
-
-
-b2BodyId body =
-    b2CreateBody(world, &body_def);
-
-b2ShapeDef shape_def =
-    b2DefaultShapeDef();
-
-shape_def.material.friction = 0.0f;
-shape_def.material.restitution = 1.0f;
-
-b2Polygon box =
-    b2MakeBox(
-        PX_TO_M(paddle->width * 0.5f),
-        PX_TO_M(paddle->height * 0.5f)
-    );
-
-b2CreatePolygonShape(
-    body,
-    &shape_def,
-    &box
-);
-
-return body;
-
+  b2BodyDef body_def = b2DefaultBodyDef();
+  body_def.type = b2_kinematicBody;
+  
+  body_def.position =
+      pixel_to_meter(
+          paddle->x + paddle->width * 0.5f,
+          paddle->y + paddle->height * 0.5f
+      );
+  
+  
+  b2BodyId body = b2CreateBody(world, &body_def);
+  b2ShapeDef shape_def = b2DefaultShapeDef();
+  
+  shape_def.material.friction = 0.0f;
+  shape_def.material.restitution = 1.0f;
+  
+  b2Polygon box =
+      b2MakeBox(
+          PX_TO_M(paddle->width * 0.5f),
+          PX_TO_M(paddle->height * 0.5f)
+      );
+  
+  b2CreatePolygonShape(
+      body,
+      &shape_def,
+      &box
+  );
+  return body;
 }
 
 static b2BodyId
 create_ball_body(
-float x,
-float y,
-float vx,
-float vy
+  float x,
+  float y,
+  float vx,
+  float vy
 )
 {
-b2BodyDef body_def =
-b2DefaultBodyDef();
-
-body_def.type = b2_dynamicBody;
-
-body_def.position =
-    pixel_to_meter(
-        x + BALL_SIZE * 0.5f,
-        y + BALL_SIZE * 0.5f
-    );
-
-body_def.isBullet = true;
-body_def.enableSleep = false;
-
-b2BodyId body =
-    b2CreateBody(world, &body_def);
-
-b2ShapeDef shape_def =
-    b2DefaultShapeDef();
-
-shape_def.density = 1.0f;
-shape_def.material.friction = 0.0f;
-shape_def.material.restitution = 1.0f;
-
-b2Circle circle = {
-    .center = {0.0f, 0.0f},
-    .radius = PX_TO_M(BALL_SIZE * 0.5f)
-};
-
-b2CreateCircleShape(
-    body,
-    &shape_def,
-    &circle
-);
-
-b2Body_SetLinearVelocity(
-    body,
-    pixel_to_meter(vx, vy)
-);
-
-return body;
+  b2BodyDef body_def =
+  b2DefaultBodyDef();
+  
+  body_def.type = b2_dynamicBody;
+  body_def.position =
+      pixel_to_meter(
+          x + BALL_SIZE * 0.5f,
+          y + BALL_SIZE * 0.5f
+      );
+  
+  body_def.isBullet    = true;
+  body_def.enableSleep = false;
+  
+  b2BodyId body = b2CreateBody(world, &body_def);
+  b2ShapeDef shape_def = b2DefaultShapeDef();
+  
+  shape_def.density              = 1.0f;
+  shape_def.material.friction    = 0.0f;
+  shape_def.material.restitution = 1.0f;
+  
+  b2Circle circle = {
+      .center = {0.0f, 0.0f},
+      .radius = PX_TO_M(BALL_SIZE * 0.5f)
+  };
+  
+  b2CreateCircleShape(
+      body,
+      &shape_def,
+      &circle
+  );
+  
+  b2Body_SetLinearVelocity(
+      body,
+      pixel_to_meter(vx, vy)
+  );
+  
+  return body;
 
 }
 
-/* ============================================================
-
-* WORLD
-* ============================================================
-  */
+// WORLD
 
 static void
 create_walls(void)
 {
-/*
-* Top wall.
-*/
-create_static_box(
-COURT_LEFT,
-COURT_TOP - 10.0f,
-COURT_RIGHT - COURT_LEFT,
-10.0f
-);
+
+// Top wall.
+  create_static_box(
+     COURT_LEFT,
+     COURT_TOP - 10.0f,
+     COURT_RIGHT - COURT_LEFT,
+     10.0f
+  );
 
 /*
  * Bottom wall.
  */
-create_static_box(
-    COURT_LEFT,
-    COURT_BOTTOM,
-    COURT_RIGHT - COURT_LEFT,
-    10.0f
-);
-
+   create_static_box(
+     COURT_LEFT,
+     COURT_BOTTOM,
+     COURT_RIGHT - COURT_LEFT,
+     10.0f
+   );
 }
 
-/* ============================================================
-
-* SYNCHRONIZATION
-* ============================================================
-*/
-
-
-
+// SYNCHRONIZATION
 static void
 sync_balls_to_physics(SimulationState *state)
 {
@@ -1712,34 +1859,18 @@ sync_physics_to_game(SimulationState *state)
         continue;
 
     b2Vec2 position = b2Body_GetPosition(ball_bodies[i]);
-
     b2Vec2 velocity = b2Body_GetLinearVelocity(ball_bodies[i]);
 
     /*
      * Box2D stores the ball CENTER.
      * The game stores its TOP-LEFT.
      */
-    balls->x[i] =
-        M_TO_PX(position.x)
-        - BALL_SIZE * 0.5f;
-
-    balls->y[i] =
-        M_TO_PX(position.y)
-        - BALL_SIZE * 0.5f;
-
-    balls->vx[i] =
-        M_TO_PX(velocity.x);
-
-    balls->vy[i] =
-        M_TO_PX(velocity.y);
-
-    balls->speed[i] =
-        sqrtf(
-            balls->vx[i] * balls->vx[i] +
-            balls->vy[i] * balls->vy[i]
-        );
+    balls->x[i]     = M_TO_PX(position.x) - BALL_SIZE * 0.5f;
+    balls->y[i]     = M_TO_PX(position.y) - BALL_SIZE * 0.5f;
+    balls->vx[i]    = M_TO_PX(velocity.x);
+    balls->vy[i]    = M_TO_PX(velocity.y);
+    balls->speed[i] = sqrtf( balls->vx[i] * balls->vx[i] + balls->vy[i] * balls->vy[i]);
 }
-
 
 /*
  * Paddles.
@@ -1958,23 +2089,19 @@ particles_spawn(
 }
 
 
-if (active_balls == 0) {
+  if (active_balls == 0) {
+    float angle = 30.0f * (PI / 180.0f);
+    float direction =
+        (state->player.score > state->enemy.score)
+            ? -1.0f
+            : 1.0f;
+
 
     ball_create(
         balls,
-
-        SCREEN_WIDTH / 2.0f
-            - BALL_SIZE / 2.0f,
-
-        SCREEN_HEIGHT / 2.0f
-            - BALL_SIZE / 2.0f,
-
-        (state->player.score >
-         state->enemy.score)
-            ? -INITIAL_BALL_SPEED
-            : INITIAL_BALL_SPEED,
-
-        100.0f
+        SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
+        SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
+        direction
     );
 }
 

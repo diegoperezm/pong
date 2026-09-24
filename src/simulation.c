@@ -136,10 +136,9 @@ create_ball_body(
   float vy
 )
 {
-  b2BodyDef body_def =
-  b2DefaultBodyDef();
-  
+  b2BodyDef body_def = b2DefaultBodyDef();
   body_def.type = b2_dynamicBody;
+
   body_def.position =
       pixel_to_meter(
           x + BALL_SIZE * 0.5f,
@@ -496,21 +495,12 @@ particles_spawn(
             ? -1.0f
             : 1.0f;
 
-    float vx =
-        cosf(angle) *
-        INITIAL_BALL_SPEED *
-        direction;
-
-    float vy =
-        sinf(angle) *
-        INITIAL_BALL_SPEED;
 
     ball_create(
         balls,
         SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
         SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
-        vx,
-        vy
+        direction
     );
 }
 

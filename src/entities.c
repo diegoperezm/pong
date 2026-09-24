@@ -1,6 +1,8 @@
 #include "entities.h"
 #include "raylib.h"
 #include <math.h>
+#include <stdlib.h>
+#include <time.h>
 #include "log.h"
 
 
@@ -35,13 +37,16 @@ balls_clear(
 
 EntityHandle
 ball_create(
-  BallPool *balls,
+  BallPool* balls,
   float x,
   float y,
-  float vx,
-  float vy
+  float direction
 )
 {
+  float angle = 30.0f * (3.14159265359f / 180.0f);
+  float vx    = cosf(angle) * INITIAL_BALL_SPEED;
+  float vy    = sinf(angle) * INITIAL_BALL_SPEED;
+ 
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
         if (balls->slots[i].active)
             continue;

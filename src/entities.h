@@ -11,8 +11,7 @@ EntityHandle ball_create(
   BallPool *balls,
   float x,
   float y,
-  float vx,
-  float vy
+  float direction
 );
 
 bool ball_is_valid(
