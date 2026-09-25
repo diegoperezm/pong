@@ -47,23 +47,33 @@ typedef struct
   uint32_t generation;
 } EntityHandle;
 
-#define INVALID_HANDLE ((EntityHandle){ .index=0, .generation=0})
+static const EntityHandle INVALID_HANDLE = { INVALID_INDEX, 0};
 
-typedef struct 
-{
- uint32_t generation;
- bool active;
+typedef struct {
+// Active: Index in dense array.
+// Inactive: Index of next free slot.
+    uint32_t dense_idx;  
+// Incremented on deletion to invalidate old handles.
+    uint32_t generation;
 } Slot;
 
 
 typedef struct 
 {
+// Sparse Layer (Slot Map) 
   Slot  slots[MAX_BALLS];
+  uint32_t free_head;
+// Dense layer (Data-Oriented SoA)
   float x[MAX_BALLS];
   float y[MAX_BALLS];
   float vx[MAX_BALLS];
   float vy[MAX_BALLS];
-  float speed[MAX_BALLS];
+  float speed[MAX_BALLS]; // original
+// Back-pointer: Dense index -> sparse slot index
+  uint32_t dense_to_sparse[MAX_BALLS];
+// Exact number of active elements
+  uint32_t count; 
+  
 } BallPool;
 
 // Particle pool

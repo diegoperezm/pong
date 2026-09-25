@@ -634,6 +634,21 @@ entities.c
 //  BALLS
 //  ============================================================ 
 
+void ball_pool_init(BallPool* pool) {
+  pool->count     = 0; 
+  pool->free_head = 0; 
+
+  // link all slots into a free-list chain 
+  for(int i=0; i < MAX_BALLS; ++i) {
+    pool->slots[i].dense_idx = 
+	    (i + 1 < MAX_BALLS) ? (i + 1) : INVALID_INDEX;
+
+    // generation 0 reserved for INVALID_HANDLE 
+    pool->slots[i].generation = 1;
+  } 
+}
+
+
 void
 balls_clear(
   BallPool *balls
@@ -661,29 +676,46 @@ balls_clear(
 
 EntityHandle
 ball_create(
-  BallPool* balls,
+  BallPool* pool,
   float x,
   float y,
   float direction
 )
 {
+// 1.  check if pool is full
+  if(pool->free_head == INVALID_INDEX || pool->count >= MAX_BALLS){
+    return INVALID_HANDLE;
+  }
+
+// 2. pop slot from free list
+  uint32_t slot_idx = pool->free_head;
+  Slot* slot = &pool->slots[slot_idx];
+
+// advace free head to next available slot
+  pool->free_head = slot->dense_idx;
+
+// 3. append data to end of dense array
+  uint32_t dense_idx = pool->count++;
+  slot->dense_idx = dense_idx;
+
   float angle = 30.0f * (3.14159265359f / 180.0f);
   float vx    = cosf(angle) * INITIAL_BALL_SPEED;
   float vy    = sinf(angle) * INITIAL_BALL_SPEED;
- 
-    for (uint32_t i = 0; i < MAX_BALLS; ++i) {
-        if (balls->slots[i].active)
-            continue;
 
-        balls->slots[i].active = true;
+  pool->x[dense_idx]  = x;
+  pool->y[dense_idx]  = y;
+  pool->vx[dense_idx] = vx;
+  pool->vy[dense_idx] = vy;
+  pool->dense_to_sparse[dense_idx] = slot_idx;
 
-        balls->x[i] = x;
-        balls->y[i] = y;
-        balls->vx[i] = vx;
-        balls->vy[i] = vy;
 
-        balls->speed[i] = sqrtf(vx * vx + vy * vy);
+  return (EntityHandle){
+       .index = slot_idx,
+       .generation = slot->generation
+   };
 
+
+/*
         LOG_ENTITY(
             "ball created: slot=%u gen=%u x=%.1f y=%.1f",
             i,
@@ -692,60 +724,64 @@ ball_create(
             y
         );
 
-        return (EntityHandle){
-            .index = i,
-            .generation = balls->slots[i].generation
-        };
-    }
 
     LOG_ENTITY(
         "ball creation failed: pool full"
     );
 
     return INVALID_HANDLE;
+*/
 }
-
 
 bool
 ball_is_valid(
-  const BallPool *balls,
+  const BallPool* pool,
   EntityHandle handle
 )
 {
-    if (handle.index >= MAX_BALLS)
-        return false;
+    if (handle.index >= MAX_BALLS ||
+        handle.generation == 0)
+           return false;
 
-    const Slot *slot = &balls->slots[handle.index];
-
-    return
-        slot->active && slot->generation == handle.generation;
+  
+    return pool->slots[handle.index].generation ==
+	   handle.generation;
 }
 
 
 void
 ball_destroy(
-    BallPool *balls,
+    BallPool* pool,
     EntityHandle handle
 )
 {
-    if (!ball_is_valid(balls, handle))
+    if (!ball_is_valid(pool, handle))
         return;
 
-    /*
-     * Incrementing the generation invalidates
-     * every existing handle referring to this slot.
-     */
-    balls->slots[handle.index].generation++;
+    uint32_t slot_idx = handle.index;
+    Slot* slot = &pool->slots[slot_idx];
 
-    balls->slots[handle.index].active = false;
+    uint32_t dead_dense = slot->dense_idx;
+    uint32_t last_dense = --pool->count; 
 
-    balls->x[handle.index] = 0.0f;
-    balls->y[handle.index] = 0.0f;
+// 1. swap-and-pop dense storage
+  if (dead_dense != last_dense) {
+    // Move last active element into dead element's position
+    pool->x[dead_dense]  = pool->x[last_dense];
+    pool->y[dead_dense]  = pool->y[last_dense];
+    pool->vx[dead_dense] = pool->vx[last_dense];
+    pool->vy[dead_dense] = pool->vy[last_dense];
 
-    balls->vx[handle.index] = 0.0f;
-    balls->vy[handle.index] = 0.0f;
+    // Repair back-pointer & sparse mapping for moved element
+    uint32_t moved_slot = pool->dense_to_sparse[last_dense];
+    pool->dense_to_sparse[dead_dense] = moved_slot;
+    pool->slots[moved_slot].dense_idx = dead_dense;
+    }
 
-    balls->speed[handle.index] = 0.0f;
+    // 2. Invalidate handle & Push slot back onto free list
+    slot->generation++;
+    slot->dense_idx = pool->free_head;
+    pool->free_head = slot_idx;
 }
 
 
@@ -1736,10 +1772,9 @@ create_ball_body(
   float vy
 )
 {
-  b2BodyDef body_def =
-  b2DefaultBodyDef();
-  
+  b2BodyDef body_def = b2DefaultBodyDef();
   body_def.type = b2_dynamicBody;
+
   body_def.position =
       pixel_to_meter(
           x + BALL_SIZE * 0.5f,

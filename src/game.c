@@ -46,14 +46,13 @@ game_start(SimulationState *state)
   state->powerup_timer = 0.0f;
   simulation_reset(state);
 
-  
+  float direction = 1.0f; 
   ball_create(
        &state->balls,
        SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
        SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
-       INITIAL_BALL_SPEED
+       direction 
    );
-
 }
 
 void
@@ -96,16 +95,17 @@ game_make_render_snapshot(
   
   snapshot->mode         = state->mode;
   snapshot->winner       = state->winner;
-  snapshot->ball_count   = 0;
-  
-  for (int i = 0; i < MAX_BALLS; ++i) {
-    snapshot->balls[i].active = state->balls.slots[i].active;
-    snapshot->balls[i].x      = state->balls.x[i];
-    snapshot->balls[i].y      = state->balls.y[i];
-    
-    if (snapshot->balls[i].active)
-      snapshot->ball_count++;
-  }
+  snapshot->ball_count = (int)state->balls.count;
+
+    for (int i = 0; i < MAX_BALLS; ++i) {
+        if (i < (int)state->balls.count) {
+            snapshot->balls[i].active = true;
+            snapshot->balls[i].x      = state->balls.x[i];
+            snapshot->balls[i].y      = state->balls.y[i];
+        } else {
+            snapshot->balls[i].active = false;
+        }
+    }
 
   for (int i = 0; i < MAX_PARTICLES; ++i) {
     snapshot->particles[i].active       = state->particles.active[i];

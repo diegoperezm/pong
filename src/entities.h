@@ -48,7 +48,7 @@ void powerups_clear(
   PowerupPool *powerups
 );
 
-void 
+int 
 powerup_create(
   PowerupPool *powerups,
   float x,

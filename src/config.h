@@ -23,9 +23,10 @@
 #define BALL_SIZE          10.0f
 
 #define INITIAL_BALL_SPEED 350.0f
-#define MAX_BALL_SPEED     800.0f
+#define MAX_BALL_SPEED     700.0f
 
 #define MAX_BALLS          3 // 32
+#define INVALID_INDEX      0xFFFFFFFF
 #define MAX_PARTICLES      512 
 #define MAX_POWERUPS       16 
 #define POWERUP_SIZE       18.0f 
