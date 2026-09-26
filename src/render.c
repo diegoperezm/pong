@@ -1,6 +1,5 @@
 #include "render.h"
 #include "raylib.h"
-#include "game.h"
 
 static float
 lerp_float(
@@ -10,7 +9,6 @@ lerp_float(
 {
   return a + (b - a) * t;
 }
-
 
 // COURT
 static void
@@ -85,7 +83,6 @@ draw_paddles(
 }
 
 // BALLS
-
 static void
 draw_balls(
   const RenderSnapshot *previous,
@@ -190,91 +187,45 @@ draw_powerups(const RenderSnapshot *snapshot)
 static void
 draw_score(const RenderSnapshot *snapshot)
 {
-  DrawText(
-    TextFormat("%d", snapshot->player_score),
-    300,
-    30,
-    40,
-    WHITE
-  );
-  
-  DrawText(
-    TextFormat("%d", snapshot->enemy_score),
-    480,
-    30,
-    40,
-    WHITE
-  );
-}
+  const char *p1_score = TextFormat("%d", snapshot->player_score);
+  const char *p2_score = TextFormat("%d", snapshot->enemy_score);
 
+  int p1_width = MeasureText(p1_score, 40);
+  int p2_width = MeasureText(p2_score, 40);
+
+  DrawText(p1_score, (SCREEN_WIDTH / 2) - 100 - (p1_width / 2), 30, 40, WHITE);
+  DrawText(p2_score, (SCREEN_WIDTH / 2) + 100 - (p2_width / 2), 30, 40, WHITE);
+}
 
 // SCREENS
 static void
 draw_title(void)
 {
-  DrawText(
-    "PONG",
-    350,
-    120,
-    40,
-    WHITE
-  );
-  
-  DrawText(
-    "PRESS ENTER",
-    315,
-    180,
-    20,
-    WHITE
-   );
+  const char *title = "PONG";
+  const char *prompt = "PRESS ENTER";
+
+  DrawText(title, (SCREEN_WIDTH / 2) - (MeasureText(title, 40) / 2), 120, 40, WHITE);
+  DrawText(prompt, (SCREEN_WIDTH / 2) - (MeasureText(prompt, 20) / 2), 180, 20, WHITE);
 }
 
 static void
 draw_pause(void)
 {
-  DrawText(
-    "PAUSED",
-    350,
-    200,
-    25,
-    WHITE
-  );
+  const char *text = "PAUSED";
+  DrawText(text, (SCREEN_WIDTH / 2) - (MeasureText(text, 25) / 2), 200, 25, WHITE);
 }
 
 static void
 draw_game_over(const RenderSnapshot *snapshot)
 {
   const char *text = snapshot->winner == 1 ? "YOU WIN" : "YOU LOSE";
+  const char *score_text = TextFormat("%d - %d", snapshot->player_score, snapshot->enemy_score);
+  const char *prompt = "PRESS ENTER";
 
-  DrawText(
-    text,
-    335,
-    120,
-    30,
-    WHITE
-  );
-  
-  DrawText(
-    TextFormat(
-      "%d - %d",
-      snapshot->player_score,
-      snapshot->enemy_score
-      ),
-      365,
-      170,
-      20,
-      WHITE
-  );
-  
-  DrawText(
-    "PRESS ENTER",
-    325,
-    210,
-    20,
-    WHITE
-    );
+  DrawText(text, (SCREEN_WIDTH / 2) - (MeasureText(text, 30) / 2), 120, 30, WHITE);
+  DrawText(score_text, (SCREEN_WIDTH / 2) - (MeasureText(score_text, 20) / 2), 170, 20, WHITE);
+  DrawText(prompt, (SCREEN_WIDTH / 2) - (MeasureText(prompt, 20) / 2), 210, 20, WHITE);
 }
-
 
 // LIFECYCLE
 void
@@ -286,7 +237,6 @@ void
 render_shutdown(void)
 {
 }
-
 
 // MAIN RENDER
 void
@@ -330,3 +280,6 @@ render_frame(
   
   EndDrawing();
 }
+
+
+

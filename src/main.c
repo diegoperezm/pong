@@ -84,7 +84,7 @@ main(void)
     );
 }
 
-  simulation_shutdown();
+  simulation_shutdown(&state);
   CloseWindow();
 
   return 0;

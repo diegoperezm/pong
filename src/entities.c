@@ -1,43 +1,48 @@
 #include "entities.h"
-#include "raylib.h"
 #include <math.h>
 #include "log.h"
 
 // ============================================================
-//  BALLS (Slot Map Implementation)
+//  BALLS (Slot Map + Box2D Integrated)
 // ============================================================ 
+
+static b2Vec2 pixel_to_meter(float x, float y) {
+    return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
+}
 
 void ball_pool_init(BallPool* pool) {
     pool->count     = 0; 
     pool->free_head = 0; 
 
-    // Link all slots into a free-list chain 
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
-        pool->slots[i].dense_idx = (i + 1 < MAX_BALLS) ? (i + 1) : INVALID_INDEX;
-        // Generation 0 is reserved for INVALID_HANDLE
+        pool->slots[i].next_free = (i + 1 < MAX_BALLS) ? (i + 1) : INVALID_INDEX;
         pool->slots[i].generation = 1;
+        pool->body[i] = b2_nullBodyId;
     } 
 }
 
 void balls_clear(BallPool *balls) {
+    // Safely clear out Box2D bodies before resetting memory map
+    for (uint32_t i = 0; i < balls->count; ++i) {
+        if (b2Body_IsValid(balls->body[i])) {
+            b2DestroyBody(balls->body[i]);
+        }
+    }
     ball_pool_init(balls);
 }
 
-EntityHandle ball_create(BallPool* pool, float x, float y, float direction) {
-    // 1. Check if pool is full
+EntityHandle ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction) {
     if (pool->free_head == INVALID_INDEX || pool->count >= MAX_BALLS) {
         LOG_ENTITY("ball creation failed: pool full");
         return INVALID_HANDLE;
     }
 
-    // 2. Pop slot from free list
+    // 1. Pop slot from free list (reading the union as next_free)
     uint32_t slot_idx = pool->free_head;
     Slot* slot = &pool->slots[slot_idx];
+    pool->free_head = slot->next_free;
 
-    // Advance free head to next available slot
-    pool->free_head = slot->dense_idx;
-
-    // 3. Append data to end of dense array
+    // 2. Map dense index (writing the union as dense_idx)
     uint32_t dense_idx = pool->count++;
     slot->dense_idx = dense_idx;
 
@@ -45,12 +50,25 @@ EntityHandle ball_create(BallPool* pool, float x, float y, float direction) {
     float vx    = cosf(angle) * INITIAL_BALL_SPEED * direction;
     float vy    = sinf(angle) * INITIAL_BALL_SPEED;
 
-    pool->x[dense_idx]                = x;
-    pool->y[dense_idx]                = y;
-    pool->vx[dense_idx]               = vx;
-    pool->vy[dense_idx]               = vy;
-    pool->speed[dense_idx]            = INITIAL_BALL_SPEED;
-    pool->dense_to_sparse[dense_idx]  = slot_idx;
+    // 3. Create Box2D body directly inside the dense array
+    b2BodyDef body_def = b2DefaultBodyDef();
+    body_def.type = b2_dynamicBody;
+    body_def.position = pixel_to_meter(x + BALL_SIZE * 0.5f, y + BALL_SIZE * 0.5f);
+    body_def.isBullet = true;
+    body_def.enableSleep = false;
+    
+    b2BodyId body = b2CreateBody(world, &body_def);
+    b2ShapeDef shape_def = b2DefaultShapeDef();
+    shape_def.density = 1.0f;
+    shape_def.material.friction = 0.0f;
+    shape_def.material.restitution = 1.0f;
+    
+    b2Circle circle = { .center = {0.0f, 0.0f}, .radius = PX_TO_M(BALL_SIZE * 0.5f) };
+    b2CreateCircleShape(body, &shape_def, &circle);
+    b2Body_SetLinearVelocity(body, pixel_to_meter(vx, vy));
+
+    pool->body[dense_idx] = body;
+    pool->dense_to_sparse[dense_idx] = slot_idx;
 
     LOG_ENTITY("ball created: slot=%u gen=%u x=%.1f y=%.1f", slot_idx, slot->generation, x, y);
 
@@ -61,15 +79,18 @@ EntityHandle ball_create(BallPool* pool, float x, float y, float direction) {
 }
 
 bool ball_is_valid(const BallPool* pool, EntityHandle handle) {
-    if (handle.index >= MAX_BALLS || handle.generation == 0)
-        return false;
-
+    if (handle.index >= MAX_BALLS || handle.generation == 0) return false;
     return pool->slots[handle.index].generation == handle.generation;
 }
 
+// 4. Safe component accessor replacing naked array access
+b2BodyId ball_get_body(const BallPool* pool, EntityHandle handle) {
+    if (!ball_is_valid(pool, handle)) return b2_nullBodyId;
+    return pool->body[pool->slots[handle.index].dense_idx];
+}
+
 void ball_destroy(BallPool* pool, EntityHandle handle) {
-    if (!ball_is_valid(pool, handle))
-        return;
+    if (!ball_is_valid(pool, handle)) return;
 
     uint32_t slot_idx = handle.index;
     Slot* slot = &pool->slots[slot_idx];
@@ -77,24 +98,29 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
     uint32_t dead_dense = slot->dense_idx;
     uint32_t last_dense = --pool->count; 
 
-    // 1. Swap-and-pop dense storage
-    if (dead_dense != last_dense) {
-        // Move last active element into dead element's position
-        pool->x[dead_dense]     = pool->x[last_dense];
-        pool->y[dead_dense]     = pool->y[last_dense];
-        pool->vx[dead_dense]    = pool->vx[last_dense];
-        pool->vy[dead_dense]    = pool->vy[last_dense];
-        pool->speed[dead_dense] = pool->speed[last_dense];
+    // 1. Destroy Physics Body
+    if (b2Body_IsValid(pool->body[dead_dense])) {
+        b2DestroyBody(pool->body[dead_dense]);
+    }
 
-        // Repair back-pointer & sparse mapping for moved element
+    // 2. Swap-and-pop dense storage
+    if (dead_dense != last_dense) {
+        // Move Box2D handle of the last element into dead element's position
+        pool->body[dead_dense] = pool->body[last_dense];
+
+        // Repair back-pointer
         uint32_t moved_slot = pool->dense_to_sparse[last_dense];
         pool->dense_to_sparse[dead_dense] = moved_slot;
         pool->slots[moved_slot].dense_idx = dead_dense;
     }
 
-    // 2. Invalidate handle & Push slot back onto free list
+    // 3. Poison stale dense array data
+    pool->body[last_dense] = b2_nullBodyId;
+    pool->dense_to_sparse[last_dense] = INVALID_INDEX;
+
+    // 4. Invalidate handle & return slot to free list
     slot->generation++;
-    slot->dense_idx = pool->free_head;
+    slot->next_free = pool->free_head;
     pool->free_head = slot_idx;
 
     LOG_ENTITY("ball destroyed: slot=%u", slot_idx);
@@ -103,44 +129,30 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
 // ============================================================
 // PARTICLES & POWERUPS
 // ============================================================ 
-
 void particles_clear(ParticlePool *particles) {
     for (int i = 0; i < MAX_PARTICLES; ++i) {
         particles->active[i] = 0;
-        particles->x[i] = 0.0f;
-        particles->y[i] = 0.0f;
-        particles->vx[i] = 0.0f;
-        particles->vy[i] = 0.0f;
-        particles->lifetime[i] = 0.0f;
-        particles->max_lifetime[i] = 0.0f;
-        particles->size[i] = 0.0f;
     }
 }
 
 void particles_spawn(ParticlePool *particles, float x, float y, float vx, float vy, float lifetime, float size) {
-    (void)vx; (void)vy; (void)lifetime; (void)size;
-    for (int n = 0; n < 20; ++n) {
-        int slot = -1;
-        for (int i = 0; i < MAX_PARTICLES; ++i) {
-            if (!particles->active[i]) {
-                slot = i;
-                break;
-            }
+    int slot = -1;
+    for (int i = 0; i < MAX_PARTICLES; ++i) {
+        if (!particles->active[i]) {
+            slot = i;
+            break;
         }
-        if (slot < 0) return;
-
-        float angle = (float)GetRandomValue(0, 359) * (PI / 180.0f);
-        float speed = (float)GetRandomValue(50, 180);
-
-        particles->active[slot] = 1;
-        particles->x[slot] = x;
-        particles->y[slot] = y;
-        particles->vx[slot] = cosf(angle) * speed;
-        particles->vy[slot] = sinf(angle) * speed;
-        particles->max_lifetime[slot] = 0.25f + (float)GetRandomValue(0, 100) / 1000.0f;
-        particles->lifetime[slot] = particles->max_lifetime[slot];
-        particles->size[slot] = (float)GetRandomValue(2, 5);
     }
+    if (slot < 0) return;
+
+    particles->active[slot] = 1;
+    particles->x[slot] = x;
+    particles->y[slot] = y;
+    particles->vx[slot] = vx;
+    particles->vy[slot] = vy;
+    particles->max_lifetime[slot] = lifetime;
+    particles->lifetime[slot] = lifetime;
+    particles->size[slot] = size;
 }
 
 void particles_update(ParticlePool *particles, float dt) {
@@ -161,28 +173,21 @@ void particles_update(ParticlePool *particles, float dt) {
 void powerups_clear(PowerupPool *powerups) {
     for (int i = 0; i < MAX_POWERUPS; ++i) {
         powerups->active[i] = 0;
-        powerups->x[i] = 0.0f;
-        powerups->y[i] = 0.0f;
-        powerups->lifetime[i] = 0.0f;
-        powerups->type[i] = POWERUP_SPEED;
     }
 }
 
 int powerup_create(PowerupPool *powerups, float x, float y, PowerupType type) {
-    (void)x; (void)y; (void)type;
     for (int i = 0; i < MAX_POWERUPS; ++i) {
         if (powerups->active[i]) continue;
         powerups->active[i] = 1;
-        powerups->x[i] = (float)GetRandomValue((int)COURT_LEFT + 80, (int)COURT_RIGHT - 80);
-        powerups->y[i] = (float)GetRandomValue((int)COURT_TOP + 40, (int)COURT_BOTTOM - 40);
-        powerups->type[i] = GetRandomValue(0, 1) == 0 ? POWERUP_SPEED : POWERUP_MULTI_BALL;
+        powerups->x[i] = x;
+        powerups->y[i] = y;
+        powerups->type[i] = type;
         powerups->lifetime[i] = 8.0f;
         return i;
     }
     return -1;
 }
-
-
 
 void powerups_update(PowerupPool *powerups, float dt) {
     for (int i = 0; i < MAX_POWERUPS; ++i) {
@@ -192,4 +197,6 @@ void powerups_update(PowerupPool *powerups, float dt) {
             powerups->active[i] = 0;
     }
 }
+
+
 

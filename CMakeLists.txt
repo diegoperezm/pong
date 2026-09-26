@@ -53,7 +53,6 @@ add_executable(
     src/input.c
     src/game.c
     src/simulation.c
-    src/collision.c
     src/entities.c
     src/render.c
     src/log.c

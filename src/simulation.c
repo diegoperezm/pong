@@ -1,31 +1,17 @@
 #include "simulation.h"
+#include "config.h"
 #include "entities.h"
 #include "log.h"
+#include "raylib.h"
 #include <math.h>
-#include <stdbool.h>
 
-#define PHYSICS_SCALE 100.0f
-#define PX_TO_M(x) ((x) / PHYSICS_SCALE)
-#define M_TO_PX(x) ((x) * PHYSICS_SCALE)
-#define PI 3.14159265359f
-
-static b2WorldId world;
 static b2BodyId  player_body;
 static b2BodyId  enemy_body;
-static b2BodyId  ball_bodies[MAX_BALLS]; // Indexed by sparse slot_idx
 static bool      initialized = false;
 
 // HELPERS
 static b2Vec2 pixel_to_meter(float x, float y) {
     return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
-}
-
-static void destroy_ball_body(uint32_t slot_idx) {
-    if (slot_idx >= MAX_BALLS || !b2Body_IsValid(ball_bodies[slot_idx]))
-        return;
-
-    b2DestroyBody(ball_bodies[slot_idx]);
-    ball_bodies[slot_idx] = b2_nullBodyId;
 }
 
 static void destroy_paddle_bodies(void) {
@@ -40,7 +26,7 @@ static void destroy_paddle_bodies(void) {
 }
 
 // BOX2D BODIES
-static b2BodyId create_static_box(float x, float y, float width, float height) {
+static b2BodyId create_static_box(b2WorldId world, float x, float y, float width, float height) {
     b2BodyDef body_def = b2DefaultBodyDef();
     body_def.type = b2_staticBody;
     body_def.position = pixel_to_meter(x + width * 0.5f, y + height * 0.5f);
@@ -55,7 +41,7 @@ static b2BodyId create_static_box(float x, float y, float width, float height) {
     return body;
 }
 
-static b2BodyId create_paddle_body(const Paddle *paddle) {
+static b2BodyId create_paddle_body(b2WorldId world, const Paddle *paddle) {
     b2BodyDef body_def = b2DefaultBodyDef();
     body_def.type = b2_kinematicBody;
     body_def.position = pixel_to_meter(paddle->x + paddle->width * 0.5f, paddle->y + paddle->height * 0.5f);
@@ -70,97 +56,39 @@ static b2BodyId create_paddle_body(const Paddle *paddle) {
     return body;
 }
 
-static b2BodyId create_ball_body(float x, float y, float vx, float vy) {
-    b2BodyDef body_def = b2DefaultBodyDef();
-    body_def.type = b2_dynamicBody;
-    body_def.position = pixel_to_meter(x + BALL_SIZE * 0.5f, y + BALL_SIZE * 0.5f);
-    body_def.isBullet = true;
-    body_def.enableSleep = false;
-    
-    b2BodyId body = b2CreateBody(world, &body_def);
-    b2ShapeDef shape_def = b2DefaultShapeDef();
-    shape_def.density = 1.0f;
-    shape_def.material.friction = 0.0f;
-    shape_def.material.restitution = 1.0f;
-    
-    b2Circle circle = { .center = {0.0f, 0.0f}, .radius = PX_TO_M(BALL_SIZE * 0.5f) };
-    b2CreateCircleShape(body, &shape_def, &circle);
-    b2Body_SetLinearVelocity(body, pixel_to_meter(vx, vy));
-    return body;
+static void create_walls(b2WorldId world) {
+    create_static_box(world, COURT_LEFT, COURT_TOP - 10.0f, COURT_RIGHT - COURT_LEFT, 10.0f);
+    create_static_box(world, COURT_LEFT, COURT_BOTTOM, COURT_RIGHT - COURT_LEFT, 10.0f);
 }
 
-static void create_walls(void) {
-    create_static_box(COURT_LEFT, COURT_TOP - 10.0f, COURT_RIGHT - COURT_LEFT, 10.0f);
-    create_static_box(COURT_LEFT, COURT_BOTTOM, COURT_RIGHT - COURT_LEFT, 10.0f);
-}
-
-// SYNCHRONIZATION
-static void sync_balls_to_physics(SimulationState *state) {
-    BallPool *balls = &state->balls;
-
-    // Direct iteration over contiguous dense array
-    for (uint32_t d = 0; d < balls->count; ++d) {
-        uint32_t slot_idx = balls->dense_to_sparse[d];
-
-        if (!b2Body_IsValid(ball_bodies[slot_idx])) {
-            ball_bodies[slot_idx] = create_ball_body(
-                balls->x[d],
-                balls->y[d],
-                balls->vx[d],
-                balls->vy[d]
-            );
-        }
-    }
-}
-
-static void sync_physics_to_game(SimulationState *state) {
-    BallPool *balls = &state->balls;
-
-    // Direct iteration over contiguous dense array
-    for (uint32_t d = 0; d < balls->count; ++d) {
-        uint32_t slot_idx = balls->dense_to_sparse[d];
-        if (!b2Body_IsValid(ball_bodies[slot_idx]))
-            continue;
-
-        b2Vec2 position = b2Body_GetPosition(ball_bodies[slot_idx]);
-        b2Vec2 velocity = b2Body_GetLinearVelocity(ball_bodies[slot_idx]);
-
-        balls->x[d]     = M_TO_PX(position.x) - BALL_SIZE * 0.5f;
-        balls->y[d]     = M_TO_PX(position.y) - BALL_SIZE * 0.5f;
-        balls->vx[d]    = M_TO_PX(velocity.x);
-        balls->vy[d]    = M_TO_PX(velocity.y);
-        balls->speed[d] = sqrtf(balls->vx[d] * balls->vx[d] + balls->vy[d] * balls->vy[d]);
-    }
-
-    if (b2Body_IsValid(player_body)) {
-        b2Vec2 position = b2Body_GetPosition(player_body);
-        state->player.y = M_TO_PX(position.y) - state->player.height * 0.5f;
-    }
-
-    if (b2Body_IsValid(enemy_body)) {
-        b2Vec2 position = b2Body_GetPosition(enemy_body);
-        state->enemy.y = M_TO_PX(position.y) - state->enemy.height * 0.5f;
-    }
-}
-
+// SYSTEMS
 static void player_system(SimulationState *state, const GameInput *input) {
     float velocity = 0.0f;
     if (input->up)   velocity -= state->player.speed;
     if (input->down) velocity += state->player.speed;
 
     b2Body_SetLinearVelocity(player_body, (b2Vec2){0.0f, PX_TO_M(velocity)});
+
+    // Keep logical Y synced for rendering
+    if (b2Body_IsValid(player_body)) {
+        b2Vec2 pos = b2Body_GetPosition(player_body);
+        state->player.y = M_TO_PX(pos.y) - state->player.height * 0.5f;
+    }
 }
 
 static void enemy_system(SimulationState *state) {
     BallPool *balls = &state->balls;
 
+    // AI Targeting Logic directly checking Box2D API
     if (!ball_is_valid(balls, state->ai_target)) {
         state->ai_target = INVALID_HANDLE;
         float best_x = -100000.0f;
 
         for (uint32_t d = 0; d < balls->count; ++d) {
-            if (balls->x[d] > best_x) {
-                best_x = balls->x[d];
+            b2Vec2 pos = b2Body_GetPosition(balls->body[d]);
+            float px = M_TO_PX(pos.x);
+            if (px > best_x) {
+                best_x = px;
                 uint32_t slot_idx = balls->dense_to_sparse[d];
                 state->ai_target = (EntityHandle){
                     .index = slot_idx,
@@ -172,41 +100,62 @@ static void enemy_system(SimulationState *state) {
 
     if (!ball_is_valid(balls, state->ai_target)) {
         b2Body_SetLinearVelocity(enemy_body, (b2Vec2){0.0f, 0.0f});
-        return;
+    } else {
+        uint32_t target_dense = balls->slots[state->ai_target.index].dense_idx;
+        b2Vec2 pos = b2Body_GetPosition(balls->body[target_dense]);
+        
+        float ball_y = M_TO_PX(pos.y);
+        float paddle_y = state->enemy.y + state->enemy.height * 0.5f;
+        float velocity = 0.0f;
+
+        if (ball_y < paddle_y)      velocity = -state->enemy.speed;
+        else if (ball_y > paddle_y) velocity = state->enemy.speed;
+
+        b2Body_SetLinearVelocity(enemy_body, (b2Vec2){0.0f, PX_TO_M(velocity)});
     }
-
-    uint32_t target_dense = balls->slots[state->ai_target.index].dense_idx;
-    float ball_y = balls->y[target_dense] + BALL_SIZE * 0.5f;
-    float paddle_y = state->enemy.y + state->enemy.height * 0.5f;
-    float velocity = 0.0f;
-
-    if (ball_y < paddle_y)      velocity = -state->enemy.speed;
-    else if (ball_y > paddle_y) velocity = state->enemy.speed;
-
-    b2Body_SetLinearVelocity(enemy_body, (b2Vec2){0.0f, PX_TO_M(velocity)});
+    
+    // Keep logical Y synced for rendering
+    if (b2Body_IsValid(enemy_body)) {
+        b2Vec2 pos = b2Body_GetPosition(enemy_body);
+        state->enemy.y = M_TO_PX(pos.y) - state->enemy.height * 0.5f;
+    }
 }
 
 static void scoring_system(SimulationState *state) {
     BallPool *balls = &state->balls;
 
-    // Iterate backwards so swap-and-pop does not skip unprocessed elements
+    // Backwards iteration required due to swap-and-pop logic in ball_destroy
     for (int d = (int)balls->count - 1; d >= 0; --d) {
+        b2Vec2 pos = b2Body_GetPosition(balls->body[d]);
+        float px = M_TO_PX(pos.x) - BALL_SIZE * 0.5f;
+        float py = M_TO_PX(pos.y) - BALL_SIZE * 0.5f;
+
         uint32_t slot_idx = balls->dense_to_sparse[d];
         EntityHandle handle = {
             .index = slot_idx,
             .generation = balls->slots[slot_idx].generation
         };
 
-        if (balls->x[d] < COURT_LEFT - BALL_SIZE) {
+        if (px < COURT_LEFT - BALL_SIZE) {
             state->enemy.score++;
-            particles_spawn(&state->particles, balls->x[d], balls->y[d], 0.0f, 0.0f, 1.0f, 2.0f);
-            destroy_ball_body(slot_idx);
+            for (int p = 0; p < PARTICLE_COUNT_ON_SCORE; ++p) {
+                float angle = (float)GetRandomValue(0, 359) * (PI / 180.0f);
+                float speed = (float)GetRandomValue(PARTICLE_MIN_SPEED, PARTICLE_MAX_SPEED);
+                float lifetime = (float)GetRandomValue(PARTICLE_MIN_LIFETIME, PARTICLE_MAX_LIFETIME) / 1000.0f;
+                float size = (float)GetRandomValue(PARTICLE_MIN_SIZE, PARTICLE_MAX_SIZE);
+                particles_spawn(&state->particles, px, py, cosf(angle) * speed, sinf(angle) * speed, lifetime, size);
+            }
             ball_destroy(balls, handle);
         }
-        else if (balls->x[d] > COURT_RIGHT) {
+        else if (px > COURT_RIGHT) {
             state->player.score++;
-            particles_spawn(&state->particles, balls->x[d], balls->y[d], 0.0f, 0.0f, 1.0f, 2.0f);
-            destroy_ball_body(slot_idx);
+            for (int p = 0; p < PARTICLE_COUNT_ON_SCORE; ++p) {
+                float angle = (float)GetRandomValue(0, 359) * (PI / 180.0f);
+                float speed = (float)GetRandomValue(PARTICLE_MIN_SPEED, PARTICLE_MAX_SPEED);
+                float lifetime = (float)GetRandomValue(PARTICLE_MIN_LIFETIME, PARTICLE_MAX_LIFETIME) / 1000.0f;
+                float size = (float)GetRandomValue(PARTICLE_MIN_SIZE, PARTICLE_MAX_SIZE);
+                particles_spawn(&state->particles, px, py, cosf(angle) * speed, sinf(angle) * speed, lifetime, size);
+            }
             ball_destroy(balls, handle);
         }
     }
@@ -215,6 +164,7 @@ static void scoring_system(SimulationState *state) {
         float direction = (state->player.score > state->enemy.score) ? -1.0f : 1.0f;
         ball_create(
             balls,
+            state->world,
             SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
             SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
             direction
@@ -227,17 +177,12 @@ void simulation_init(SimulationState *state) {
     world_def.gravity = (b2Vec2){0.0f, 0.0f};
     world_def.enableContinuous = true;
 
-    world = b2CreateWorld(&world_def);
+    state->world = b2CreateWorld(&world_def);
     player_body = b2_nullBodyId;
     enemy_body  = b2_nullBodyId;
 
-    for (int i = 0; i < MAX_BALLS; ++i) {
-        ball_bodies[i] = b2_nullBodyId;
-    }
-
-    create_walls();
+    create_walls(state->world);
     initialized = true;
-    (void)state;
 
     LOG_SIMULATION("Box2D initialized");
 }
@@ -245,21 +190,19 @@ void simulation_init(SimulationState *state) {
 void simulation_reset(SimulationState *state) {
     if (!initialized) return;
 
+    // Light reset: clear paddle bodies and active balls without tearing down the world
     destroy_paddle_bodies();
-    for (uint32_t i = 0; i < MAX_BALLS; ++i) {
-        destroy_ball_body(i);
-    }
-    (void)state;
+    balls_clear(&state->balls);
 }
 
-void simulation_shutdown(void) {
+void simulation_shutdown(SimulationState *state) {
     if (!initialized) return;
 
-    if (b2World_IsValid(world)) {
-        b2DestroyWorld(world);
+    if (b2World_IsValid(state->world)) {
+        b2DestroyWorld(state->world);
     }
 
-    world = b2_nullWorldId;
+    state->world = b2_nullWorldId;
     initialized = false;
 }
 
@@ -267,19 +210,18 @@ void simulation_update(SimulationState *state, const GameInput *input, float dt)
     if (!initialized) return;
 
     if (!b2Body_IsValid(player_body))
-        player_body = create_paddle_body(&state->player);
+        player_body = create_paddle_body(state->world, &state->player);
 
     if (!b2Body_IsValid(enemy_body))
-        enemy_body = create_paddle_body(&state->enemy);
+        enemy_body = create_paddle_body(state->world, &state->enemy);
 
     player_system(state, input);
     enemy_system(state);
-    sync_balls_to_physics(state);
 
-    b2World_Step(world, dt, 4);
+    b2World_Step(state->world, dt, 4);
 
-    sync_physics_to_game(state);
     scoring_system(state);
     particles_update(&state->particles, dt);
 }
+
 

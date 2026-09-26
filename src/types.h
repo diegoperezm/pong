@@ -1,44 +1,28 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include "config.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <box2d/box2d.h>
 
-#include "config.h"
-
-// Game Mode
-typedef enum 
-{
-  GAME_TITLE,
-  GAME_PLAYING,
-  GAME_PAUSED,
-  GAME_OVER 
-} GameMode;
-
-
-/*
-   input is transient.
-   it is sampled from the platform and consumed
-   by the simulation
- */
-typedef struct 
-{
-  int up;
-  int down;
-  int start;
-  int pause;
+typedef struct {
+    bool up;
+    bool down;
+    bool start;
 } GameInput;
 
+typedef enum { 
+ GAME_TITLE,
+ GAME_PLAYING,
+ GAME_PAUSED,
+ GAME_OVER 
+} 
+GameMode;
 
-// Player/Paddle data
-typedef struct
-{
-  float x;
-  float y;
-  float width;
-  float height;
-  float speed;
-  int score;
+typedef struct {
+    float x, y, width, height, speed;
+    int score;
 } Paddle;
 
 typedef struct 
@@ -50,82 +34,58 @@ typedef struct
 static const EntityHandle INVALID_HANDLE = { INVALID_INDEX, 0};
 
 typedef struct {
-// Active: Index in dense array.
-// Inactive: Index of next free slot.
-    uint32_t dense_idx;  
-// Incremented on deletion to invalidate old handles.
+    union {
+        uint32_t dense_idx; // Used when the entity is alive
+        uint32_t next_free; // Used when the entity is dead
+    };
     uint32_t generation;
 } Slot;
 
 
-typedef struct 
-{
+
+
+// ============================================================
+// BALL POOL (Box2D Stream)
+// ============================================================
+typedef struct {
 // Sparse Layer (Slot Map) 
-  Slot  slots[MAX_BALLS];
-  uint32_t free_head;
-// Dense layer (Data-Oriented SoA)
-  float x[MAX_BALLS];
-  float y[MAX_BALLS];
-  float vx[MAX_BALLS];
-  float vy[MAX_BALLS];
-  float speed[MAX_BALLS]; // original
-// Back-pointer: Dense index -> sparse slot index
-  uint32_t dense_to_sparse[MAX_BALLS];
-// Exact number of active elements
-  uint32_t count; 
-  
+    Slot slots[MAX_BALLS];
+    uint32_t free_head;
+    uint32_t count;
+
+    // SINGLE SOURCE OF TRUTH: Array of Box2D bodies
+    b2BodyId body[MAX_BALLS]; 
+    uint32_t dense_to_sparse[MAX_BALLS];
 } BallPool;
 
-// Particle pool
 
-typedef struct 
-{
+// ============================================================
+// PARTICLES & POWERUPS
+// ============================================================
+typedef enum { 
+  POWERUP_SPEED,
+  POWERUP_MULTI_BALL 
+} PowerupType;
+
+typedef struct {
   int   active[MAX_PARTICLES];
-  int   x[MAX_PARTICLES];
-  int   y[MAX_PARTICLES];
-  int   vx[MAX_PARTICLES];
-  int   vy[MAX_PARTICLES];
+  float x[MAX_PARTICLES];
+  float y[MAX_PARTICLES];
+  float vx[MAX_PARTICLES];
+  float vy[MAX_PARTICLES];
   float lifetime[MAX_PARTICLES];
   float max_lifetime[MAX_PARTICLES];
   float size[MAX_PARTICLES];
 } ParticlePool;
 
-// Power-ups
-typedef enum 
-{
-  POWERUP_SPEED,
-  POWERUP_MULTI_BALL,
-} PowerupType;
-
-// Power-up pool
-typedef struct 
-{
-  int         active[MAX_POWERUPS];
-  float       x[MAX_POWERUPS];
-  float       y[MAX_POWERUPS];
-  PowerupType type[MAX_POWERUPS];
-  float       lifetime[MAX_POWERUPS];
+typedef struct {
+  int          active[MAX_POWERUPS];
+  float        x[MAX_POWERUPS];
+  float        y[MAX_POWERUPS];
+  float        lifetime[MAX_POWERUPS];
+  PowerupType  type[MAX_POWERUPS];
 } PowerupPool;
 
-/*
-   Complete simulation state
-   this is authoritative game state
-   Rendering does not modify this
- */
-
-typedef struct 
-{
-  GameMode     mode;
-  float        game_time;
-  Paddle       player;
-  Paddle       enemy;
-  EntityHandle ai_target;
-  BallPool     balls;
-  ParticlePool particles;
-  PowerupPool  powerups;
-  float        powerup_timer;
-  int          winner;
-} SimulationState;
 
 typedef struct {
   int   enabled;
@@ -175,6 +135,26 @@ typedef struct {
   GameMode       mode;
   int            winner;
 } RenderSnapshot;
+
+typedef struct {
+    GameMode mode;
+    float game_time;
+    int winner;
+
+    Paddle player;
+    Paddle enemy;
+    
+    BallPool balls;
+    ParticlePool particles;
+    PowerupPool powerups;
+    float powerup_timer;
+    
+    EntityHandle ai_target;
+
+    b2WorldId world; // Shared world state
+} SimulationState;
+
+
 
 #endif
 

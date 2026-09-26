@@ -33,6 +33,16 @@
 #define POWERUP_INTERVAL   5.0f 
 #define WINNING_SCORE      10 
 
+// Particle Configuration Constants
+#define PARTICLE_COUNT_ON_SCORE 20
+#define PARTICLE_MIN_SPEED      50
+#define PARTICLE_MAX_SPEED      180
+#define PARTICLE_MIN_LIFETIME   250 // ms
+#define PARTICLE_MAX_LIFETIME   350 // ms
+#define PARTICLE_MIN_SIZE       2
+#define PARTICLE_MAX_SIZE       5
+
+
 #endif
 
 

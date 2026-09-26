@@ -1,0 +1,7 @@
+/Users/dapm/project/pong/src/input.c:9:10: error: no member named 'pause' in 'GameInput'
+  input->pause = IsKeyPressed(KEY_ESCAPE);
+  ~~~~~  ^
+2 warnings and 1 error generated.
+make[2]: *** [CMakeFiles/pong.dir/src/input.c.o] Error 1
+make[1]: *** [CMakeFiles/pong.dir/all] Error 2
+make: *** [all] Error 2
