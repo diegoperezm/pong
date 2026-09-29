@@ -1,15 +1,7 @@
-#include "entities.h"
+#include "config.h"
 #include "debug.h"
 #include "raylib.h"
 #include <stdio.h>
-
-#define DEBUG_FONT_SIZE       16
-#define DEBUG_LINE_HEIGHT     20
-#define DEBUG_PANEL_X         10
-#define DEBUG_PANEL_Y         450
-#define DEBUG_PANEL_WIDTH     300
-#define DEBUG_PANEL_HEIGHT    350
-#define DEBUG_PADDING         10
 
 void debug_init(DebugState *debug) {
     debug->enabled         = 0;
@@ -145,8 +137,13 @@ void debug_draw(const DebugState *debug, const SimulationState *state) {
     snprintf(text, sizeof(text), "  Powerups: %d / %d", debug->powerup_count, MAX_POWERUPS);
     debug_text(x, y, text);
 
-    debug_draw_collisions(state); 
-    debug_draw_velocity(state); 
+    // CORRECCIÓN: Respetar banderas de características del módulo de debug
+    if (debug->show_collisions) {
+        debug_draw_collisions(state); 
+    }
+    if (debug->show_velocity) {
+        debug_draw_velocity(state); 
+    }
 }
 
 void debug_draw_collisions(const SimulationState *state) {
@@ -155,7 +152,6 @@ void debug_draw_collisions(const SimulationState *state) {
     DrawRectangleLines((int)state->player.x, (int)state->player.y, (int)state->player.width, (int)state->player.height, RED);
     DrawRectangleLines((int)state->enemy.x, (int)state->enemy.y, (int)state->enemy.width, (int)state->enemy.height, RED);
 
-    // Reads purely from synchronized state
     for (uint32_t i = 0; i < state->balls.count; ++i) {
         int bx = (int)state->balls.x[i];
         int by = (int)state->balls.y[i];
@@ -166,7 +162,6 @@ void debug_draw_collisions(const SimulationState *state) {
 void debug_draw_velocity(const SimulationState *state) {
     if (state == NULL) return;
 
-    // Reads velocity vectors directly from synchronized state
     for (uint32_t i = 0; i < state->balls.count; ++i) {
         float center_x = state->balls.x[i] + BALL_SIZE * 0.5f;
         float center_y = state->balls.y[i] + BALL_SIZE * 0.5f;
@@ -176,5 +171,6 @@ void debug_draw_velocity(const SimulationState *state) {
         DrawLine((int)center_x, (int)center_y, (int)end_x, (int)end_y, YELLOW);
     }
 }
+
 
 

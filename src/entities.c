@@ -1,11 +1,6 @@
 #include "entities.h"
-//#include "raylib.h"
 #include <math.h>
 #include "log.h"
-
-// ============================================================
-//  BALLS (Slot Map + SoA Storage)
-// ============================================================ 
 
 static b2Vec2 pixel_to_meter(float x, float y) {
     return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
@@ -17,7 +12,12 @@ void ball_pool_init(BallPool* pool) {
 
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
         pool->slots[i].next_free = (i + 1 < MAX_BALLS) ? (i + 1) : INVALID_INDEX;
-        pool->slots[i].generation = 1;
+        // CORRECCIÓN: Prevenir el reseteo de la generación de IDs en re-inicios para evitar 
+        // validaciones falsas en punteros guardados (ABA problem).
+        if (pool->slots[i].generation == 0) {
+            pool->slots[i].generation = 1;
+        }
+	pool->slots[i].active = false;
         pool->body[i] = b2_nullBodyId;
         pool->x[i]    = 0.0f;
         pool->y[i]    = 0.0f;
@@ -37,25 +37,26 @@ void balls_clear(BallPool *balls) {
 }
 
 EntityHandle ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction) {
+    if (!b2World_IsValid(world)) return INVALID_HANDLE;
+
     if (pool->free_head == INVALID_INDEX || pool->count >= MAX_BALLS) {
         LOG_ENTITY("ball creation failed: pool full");
         return INVALID_HANDLE;
     }
 
-    // 1. Pop slot from free list using union's next_free
+    // Allocate slot
     uint32_t slot_idx = pool->free_head;
     Slot* slot = &pool->slots[slot_idx];
     pool->free_head = slot->next_free;
 
-    // 2. Map dense index
     uint32_t dense_idx = pool->count++;
     slot->dense_idx = dense_idx;
+    slot->active = true;
 
     float angle = 30.0f * (3.14159265359f / 180.0f);
     float vx    = cosf(angle) * INITIAL_BALL_SPEED * direction;
     float vy    = sinf(angle) * INITIAL_BALL_SPEED;
 
-    // 3. Instantiate Box2D physics body
     b2BodyDef body_def = b2DefaultBodyDef();
     body_def.type = b2_dynamicBody;
     body_def.position = pixel_to_meter(x + BALL_SIZE * 0.5f, y + BALL_SIZE * 0.5f);
@@ -63,16 +64,41 @@ EntityHandle ball_create(BallPool* pool, b2WorldId world, float x, float y, floa
     body_def.enableSleep = false;
     
     b2BodyId body = b2CreateBody(world, &body_def);
+    
+    // 1. Rollback if Box2D body creation fails
+    if (!b2Body_IsValid(body)) {
+        pool->count--; 
+        slot->active = false;
+        slot->dense_idx = INVALID_INDEX;
+        slot->next_free = pool->free_head;
+        pool->free_head = slot_idx;
+        LOG_ENTITY("ball creation failed: box2d body invalid");
+        return INVALID_HANDLE;
+    }
+
+    // Body is valid, proceed with shape creation
     b2ShapeDef shape_def = b2DefaultShapeDef();
     shape_def.density = 1.0f;
     shape_def.material.friction = 0.0f;
     shape_def.material.restitution = 1.0f;
     
     b2Circle circle = { .center = {0.0f, 0.0f}, .radius = PX_TO_M(BALL_SIZE * 0.5f) };
-    b2CreateCircleShape(body, &shape_def, &circle);
+    b2ShapeId shape_id = b2CreateCircleShape(body, &shape_def, &circle);
+
+    // 2. Rollback if Box2D shape creation fails (destroy body + reset slot)
+    if (!b2Shape_IsValid(shape_id)) {
+        b2DestroyBody(body);
+        pool->count--; 
+        slot->active = false;
+        slot->dense_idx = INVALID_INDEX;
+        slot->next_free = pool->free_head;
+        pool->free_head = slot_idx;
+        LOG_ENTITY("ball creation failed: box2d shape invalid");
+        return INVALID_HANDLE;
+    }
+
     b2Body_SetLinearVelocity(body, pixel_to_meter(vx, vy));
 
-    // 4. Store component state in dense arrays
     pool->body[dense_idx] = body;
     pool->x[dense_idx]    = x;
     pool->y[dense_idx]    = y;
@@ -88,10 +114,40 @@ EntityHandle ball_create(BallPool* pool, b2WorldId world, float x, float y, floa
     };
 }
 
+
+
 bool ball_is_valid(const BallPool* pool, EntityHandle handle) {
     if (handle.index >= MAX_BALLS || handle.generation == 0) return false;
-    return pool->slots[handle.index].generation == handle.generation;
+
+    const Slot *slot = &pool->slots[handle.index];
+
+    // 1. Must be explicitly marked active
+    if (!slot->active) return false;
+
+    // 2. Generation must match (guards against ABA reuse)
+    if (slot->generation != handle.generation) return false;
+
+    // 3. Bidirectional dense-to-sparse integrity check
+    uint32_t dense_idx = slot->dense_idx;
+    if (dense_idx >= pool->count) return false;
+
+    return pool->dense_to_sparse[dense_idx] == handle.index;
 }
+/*
+bool ball_is_valid(const BallPool* pool, EntityHandle handle) {
+    if (handle.index >= MAX_BALLS || handle.generation == 0) return false;
+
+    // 1. Verificación de generación (mitiga el problema ABA)
+    if (pool->slots[handle.index].generation != handle.generation) return false;
+
+    // 2. Verificación de vitalidad: el índice denso debe estar dentro del rango activo
+    uint32_t dense_idx = pool->slots[handle.index].dense_idx;
+    if (dense_idx >= pool->count) return false;
+
+    // 3. Integridad bidireccional: el elemento en el arreglo denso debe apuntar de regreso a este slot
+    return pool->dense_to_sparse[dense_idx] == handle.index;
+}
+*/
 
 void ball_destroy(BallPool* pool, EntityHandle handle) {
     if (!ball_is_valid(pool, handle)) return;
@@ -99,15 +155,14 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
     uint32_t slot_idx = handle.index;
     Slot* slot = &pool->slots[slot_idx];
 
+
     uint32_t dead_dense = slot->dense_idx;
     uint32_t last_dense = --pool->count; 
 
-    // 1. Destroy Physics Body
     if (b2Body_IsValid(pool->body[dead_dense])) {
         b2DestroyBody(pool->body[dead_dense]);
     }
 
-    // 2. Swap-and-pop dense storage across all components
     if (dead_dense != last_dense) {
         pool->body[dead_dense] = pool->body[last_dense];
         pool->x[dead_dense]    = pool->x[last_dense];
@@ -120,7 +175,6 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
         pool->slots[moved_slot].dense_idx = dead_dense;
     }
 
-    // 3. Poison stale array data
     pool->body[last_dense]            = b2_nullBodyId;
     pool->x[last_dense]               = 0.0f;
     pool->y[last_dense]               = 0.0f;
@@ -128,7 +182,8 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
     pool->vy[last_dense]              = 0.0f;
     pool->dense_to_sparse[last_dense] = INVALID_INDEX;
 
-    // 4. Return slot to free list
+    slot->active = false;
+    slot->dense_idx = INVALID_INDEX; // Explicitly clear stale dense index
     slot->generation++;
     slot->next_free = pool->free_head;
     pool->free_head = slot_idx;
@@ -136,9 +191,6 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
     LOG_ENTITY("ball destroyed: slot=%u", slot_idx);
 }
 
-// ============================================================
-// PARTICLES & POWERUPS
-// ============================================================ 
 void particles_clear(ParticlePool *particles) {
     for (int i = 0; i < MAX_PARTICLES; ++i) {
         particles->active[i] = 0;

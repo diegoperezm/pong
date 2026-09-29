@@ -34,13 +34,20 @@ void game_start(SimulationState *state) {
     state->game_time = 0.0f;
     state->winner = 0;
 
+    // Explicitly reset scores for a fresh match
+    state->player.score = 0;
+    state->enemy.score = 0;
+
     reset_paddles(state);
-    balls_clear(&state->balls);
+    
+    // REMOVED redundant balls_clear(&state->balls); 
+    // simulation_reset(state) below will handle clearing balls and paddle bodies safely.
+
     particles_clear(&state->particles);
     powerups_clear(&state->powerups);
 
     state->powerup_timer = 0.0f;
-    simulation_reset(state);
+    simulation_reset(state); // Owns resetting simulation state (paddles & balls)[cite: 2]
 
     ball_create(
         &state->balls,
@@ -51,17 +58,33 @@ void game_start(SimulationState *state) {
     );
 }
 
+
 void game_update(SimulationState *state, const GameInput *input, float dt) {
     if (state->mode == GAME_TITLE) {
         if (input->start) game_start(state);
         return;
     }
+    
+    // Check for unpause
+    if (state->mode == GAME_PAUSED) {
+        if (input->pause) {
+            state->mode = GAME_PLAYING;
+        }
+        return;
+    }
   
     if (state->mode != GAME_PLAYING) return;
+    
+    // Check for pause
+    if (input->pause) {
+        state->mode = GAME_PAUSED;
+        return;
+    }
   
     state->game_time += dt;
     simulation_update(state, input, dt);
 }
+
 
 void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* snapshot) {
     snapshot->player_x     = state->player.x;
@@ -76,16 +99,22 @@ void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* sna
     snapshot->winner       = state->winner;
     snapshot->ball_count   = (int)state->balls.count;
   
-    // Completely decoupled from Box2D internals
+    // 1. Desactivar inicialmente todos los slots de pelotas en el snapshot
     for (int i = 0; i < MAX_BALLS; ++i) {
-        if (i < (int)state->balls.count) {
-            snapshot->balls[i].active = true;
-            snapshot->balls[i].x      = state->balls.x[i];
-            snapshot->balls[i].y      = state->balls.y[i];
-        } else {
-            snapshot->balls[i].active = false;
+        snapshot->balls[i].active = false;
+    }
+
+// 2. Mapear cada pelota activa a su slot disperso estable (dense_to_sparse)
+    for (uint32_t d = 0; d < state->balls.count; ++d) {
+        uint32_t slot_idx = state->balls.dense_to_sparse[d];
+        if (slot_idx < MAX_BALLS) {
+            snapshot->balls[slot_idx].active     = true;
+            snapshot->balls[slot_idx].x          = state->balls.x[d];
+            snapshot->balls[slot_idx].y          = state->balls.y[d];
+            snapshot->balls[slot_idx].generation = state->balls.slots[slot_idx].generation; // Save gen
         }
     }
+
 
     for (int i = 0; i < MAX_PARTICLES; ++i) {
         snapshot->particles[i].active       = state->particles.active[i];
@@ -104,3 +133,19 @@ void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* sna
     }
 }
 
+
+bool game_handle_input(SimulationState *state, const GameInput *input) {
+    if (state->mode == GAME_TITLE && input->start) {
+        game_start(state);
+        return true; // Signal main.c to reset accumulator
+    } 
+    else if (state->mode == GAME_PLAYING && input->pause) {
+        state->mode = GAME_PAUSED;
+        return true; 
+    } 
+    else if (state->mode == GAME_PAUSED && input->pause) {
+        state->mode = GAME_PLAYING;
+        return true; 
+    }
+    return false;
+}

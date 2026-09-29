@@ -9,7 +9,8 @@
 typedef struct {
     bool up;
     bool down;
-    bool start;
+    bool start;  
+    bool pause;
 } GameInput;
 
 typedef enum { 
@@ -34,15 +35,11 @@ typedef struct
 static const EntityHandle INVALID_HANDLE = { INVALID_INDEX, 0};
 
 typedef struct {
-    union {
-        uint32_t dense_idx; // Used when the entity is alive
-        uint32_t next_free; // Used when the entity is dead
-    };
+    uint32_t next_free;
     uint32_t generation;
+    uint32_t dense_idx;
+    bool     active;      // Explicit live-state tracking
 } Slot;
-
-
-
 
 // ============================================================
 // BALL POOL (Box2D Stream)
@@ -67,7 +64,8 @@ typedef struct {
 // ============================================================
 typedef enum { 
   POWERUP_SPEED,
-  POWERUP_MULTI_BALL 
+  POWERUP_MULTI_BALL, 
+  POWERUP_FAST_PADDLE
 } PowerupType;
 
 typedef struct {
@@ -106,6 +104,7 @@ typedef struct {
   bool active;
   float x;
   float y;
+  uint32_t generation;
 } RenderBall;
 
 typedef struct {
@@ -139,7 +138,12 @@ typedef struct {
   int            winner;
 } RenderSnapshot;
 
+
 typedef struct {
+    b2WorldId world;     // shared world state
+    b2BodyId player_body;
+    b2BodyId enemy_body;
+
     GameMode mode;
     float game_time;
     int winner;
@@ -154,7 +158,7 @@ typedef struct {
     
     EntityHandle ai_target;
 
-    b2WorldId world; // Shared world state
+   
 } SimulationState;
 
 

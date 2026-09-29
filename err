@@ -1,0 +1,34 @@
+In file included from /Users/dapm/project/pong/src/simulation.c:1:
+In file included from /Users/dapm/project/pong/src/simulation.h:4:
+In file included from /Users/dapm/project/pong/src/types.h:7:
+In file included from /Users/dapm/project/pong/third_party/box2d/src/../include/box2d/box2d.h:7:
+/Users/dapm/project/pong/third_party/box2d/src/../include/box2d/collision.h:312:3: warning: redefinition of typedef 'b2Hull' is a C11 feature [-Wtypedef-redefinition]
+} b2Hull;
+  ^
+/Users/dapm/project/pong/third_party/box2d/src/../include/box2d/collision.h:12:23: note: previous definition is here
+typedef struct b2Hull b2Hull;
+                      ^
+/Users/dapm/project/pong/third_party/box2d/src/../include/box2d/collision.h:378:3: warning: redefinition of typedef 'b2SimplexCache' is a C11 feature [-Wtypedef-redefinition]
+} b2SimplexCache;
+  ^
+/Users/dapm/project/pong/third_party/box2d/src/../include/box2d/collision.h:11:31: note: previous definition is here
+typedef struct b2SimplexCache b2SimplexCache;
+                              ^
+2 warnings generated.
+In file included from /Users/dapm/project/pong/src/entities.c:1:
+In file included from /Users/dapm/project/pong/src/entities.h:3:
+In file included from /Users/dapm/project/pong/src/types.h:7:
+In file included from /Users/dapm/project/pong/third_party/box2d/src/../include/box2d/box2d.h:7:
+/Users/dapm/project/pong/third_party/box2d/src/../include/box2d/collision.h:312:3: warning: redefinition of typedef 'b2Hull' is a C11 feature [-Wtypedef-redefinition]
+} b2Hull;
+  ^
+/Users/dapm/project/pong/third_party/box2d/src/../include/box2d/collision.h:12:23: note: previous definition is here
+typedef struct b2Hull b2Hull;
+                      ^
+/Users/dapm/project/pong/third_party/box2d/src/../include/box2d/collision.h:378:3: warning: redefinition of typedef 'b2SimplexCache' is a C11 feature [-Wtypedef-redefinition]
+} b2SimplexCache;
+  ^
+/Users/dapm/project/pong/third_party/box2d/src/../include/box2d/collision.h:11:31: note: previous definition is here
+typedef struct b2SimplexCache b2SimplexCache;
+                              ^
+2 warnings generated.

@@ -25,4 +25,9 @@ void game_make_render_snapshot(
     RenderSnapshot *snapshot
 );
 
+bool game_handle_input(
+  SimulationState *state,
+  const GameInput *input
+);
+
 #endif

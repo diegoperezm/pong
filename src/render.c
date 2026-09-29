@@ -83,6 +83,7 @@ draw_paddles(
 }
 
 // BALLS
+// BALLS
 static void
 draw_balls(
   const RenderSnapshot *previous,
@@ -94,32 +95,34 @@ draw_balls(
     if (!current->balls[i].active)
       continue;
 
-  float x = current->balls[i].x;
-  float y = current->balls[i].y;
+    float x = current->balls[i].x;
+    float y = current->balls[i].y;
 
-  if (previous->balls[i].active) {
-    x = lerp_float(
-      previous->balls[i].x,
-      current->balls[i].x,
-      alpha
+    // Only interpolate if the slot was active previously AND belongs to the exact same generation
+    if (previous->balls[i].active && previous->balls[i].generation == current->balls[i].generation) {
+      x = lerp_float(
+        previous->balls[i].x,
+        current->balls[i].x,
+        alpha
       );
 
-    y = lerp_float(
-      previous->balls[i].y,
-      current->balls[i].y,
-      alpha
+      y = lerp_float(
+        previous->balls[i].y,
+        current->balls[i].y,
+        alpha
       );
- }
+    }
 
-  DrawRectangle(
-    (int)x,
-    (int)y,
-    (int)BALL_SIZE,
-    (int)BALL_SIZE,
-    WHITE
-  );
+    DrawRectangle(
+      (int)x,
+      (int)y,
+      (int)BALL_SIZE,
+      (int)BALL_SIZE,
+      WHITE
+    );
   }
 }
+
 
 // PARTICLES
 static void
@@ -168,7 +171,7 @@ draw_powerups(const RenderSnapshot *snapshot)
    
    Color color;
    
-   if (snapshot->powerups[i].type == POWERUP_SPEED)
+   if (snapshot->powerups[i].type == POWERUP_FAST_PADDLE)
      color = RED;
    else
      color = BLUE;
