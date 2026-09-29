@@ -48,13 +48,16 @@ typedef struct {
 // BALL POOL (Box2D Stream)
 // ============================================================
 typedef struct {
-// Sparse Layer (Slot Map) 
-    Slot slots[MAX_BALLS];
-    uint32_t free_head;
     uint32_t count;
+    uint32_t free_head;
+    Slot slots[MAX_BALLS];
 
-    // SINGLE SOURCE OF TRUTH: Array of Box2D bodies
-    b2BodyId body[MAX_BALLS]; 
+    // Parallel dense arrays (SoA layout)
+    b2BodyId body[MAX_BALLS];
+    float x[MAX_BALLS];        // <-- Make sure this line exists
+    float y[MAX_BALLS];        // <-- Make sure this line exists
+    float vx[MAX_BALLS];       // <-- Make sure this line exists
+    float vy[MAX_BALLS];       // <-- Make sure this line exists
     uint32_t dense_to_sparse[MAX_BALLS];
 } BallPool;
 

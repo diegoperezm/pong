@@ -47,7 +47,7 @@ void game_start(SimulationState *state) {
         state->world,
         SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
         SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
-        1.0f // Pass direct unit multiplier instead of raw speed
+        1.0f
     );
 }
 
@@ -76,13 +76,12 @@ void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* sna
     snapshot->winner       = state->winner;
     snapshot->ball_count   = (int)state->balls.count;
   
-    // Fetch directly from Box2D with validation protection
+    // Completely decoupled from Box2D internals
     for (int i = 0; i < MAX_BALLS; ++i) {
-        if (i < (int)state->balls.count && b2Body_IsValid(state->balls.body[i])) {
-            b2Vec2 pos = b2Body_GetPosition(state->balls.body[i]);
+        if (i < (int)state->balls.count) {
             snapshot->balls[i].active = true;
-            snapshot->balls[i].x      = M_TO_PX(pos.x) - BALL_SIZE * 0.5f;
-            snapshot->balls[i].y      = M_TO_PX(pos.y) - BALL_SIZE * 0.5f;
+            snapshot->balls[i].x      = state->balls.x[i];
+            snapshot->balls[i].y      = state->balls.y[i];
         } else {
             snapshot->balls[i].active = false;
         }
@@ -104,5 +103,4 @@ void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* sna
         snapshot->powerups[i].type   = state->powerups.type[i];
     }
 }
-
 

@@ -155,11 +155,10 @@ void debug_draw_collisions(const SimulationState *state) {
     DrawRectangleLines((int)state->player.x, (int)state->player.y, (int)state->player.width, (int)state->player.height, RED);
     DrawRectangleLines((int)state->enemy.x, (int)state->enemy.y, (int)state->enemy.width, (int)state->enemy.height, RED);
 
-    // Contiguous iteration reading directly from Box2D API
+    // Reads purely from synchronized state
     for (uint32_t i = 0; i < state->balls.count; ++i) {
-        b2Vec2 pos = b2Body_GetPosition(state->balls.body[i]);
-        int bx = (int)(M_TO_PX(pos.x) - BALL_SIZE * 0.5f);
-        int by = (int)(M_TO_PX(pos.y) - BALL_SIZE * 0.5f);
+        int bx = (int)state->balls.x[i];
+        int by = (int)state->balls.y[i];
         DrawRectangleLines(bx, by, (int)BALL_SIZE, (int)BALL_SIZE, GREEN);
     }
 }
@@ -167,15 +166,12 @@ void debug_draw_collisions(const SimulationState *state) {
 void debug_draw_velocity(const SimulationState *state) {
     if (state == NULL) return;
 
-    // Contiguous iteration reading directly from Box2D API
+    // Reads velocity vectors directly from synchronized state
     for (uint32_t i = 0; i < state->balls.count; ++i) {
-        b2Vec2 pos = b2Body_GetPosition(state->balls.body[i]);
-        b2Vec2 vel = b2Body_GetLinearVelocity(state->balls.body[i]);
-
-        float center_x = M_TO_PX(pos.x);
-        float center_y = M_TO_PX(pos.y);
-        float end_x    = center_x + M_TO_PX(vel.x) * 0.5f;
-        float end_y    = center_y + M_TO_PX(vel.y) * 0.5f;
+        float center_x = state->balls.x[i] + BALL_SIZE * 0.5f;
+        float center_y = state->balls.y[i] + BALL_SIZE * 0.5f;
+        float end_x    = center_x + state->balls.vx[i] * 0.5f;
+        float end_y    = center_y + state->balls.vy[i] * 0.5f;
 
         DrawLine((int)center_x, (int)center_y, (int)end_x, (int)end_y, YELLOW);
     }
