@@ -27,11 +27,13 @@ void log_init(void)
 
 void log_enable(LogCategory category)
 {
+  if(category >= LOG_COUNT || category >= 32) return;
   enabled_categories |= (1u << category);
 }
 
 void log_disable(LogCategory category)
 {
+  if(category >= LOG_COUNT || category >= 32) return;
   enabled_categories &= ~(1u << category);
 }
 
