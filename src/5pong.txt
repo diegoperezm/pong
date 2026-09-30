@@ -1,17 +1,9 @@
 debug.c
 
-#include "entities.h"
+#include "config.h"
 #include "debug.h"
 #include "raylib.h"
 #include <stdio.h>
-
-#define DEBUG_FONT_SIZE       16
-#define DEBUG_LINE_HEIGHT     20
-#define DEBUG_PANEL_X         10
-#define DEBUG_PANEL_Y         450
-#define DEBUG_PANEL_WIDTH     300
-#define DEBUG_PANEL_HEIGHT    350
-#define DEBUG_PADDING         10
 
 void debug_init(DebugState *debug) {
     debug->enabled         = 0;
@@ -604,6 +596,12 @@ bool game_handle_input(SimulationState *state, const GameInput *input) {
         state->mode = GAME_PLAYING;
         return true; 
     }
+    else if (state->mode == GAME_OVER && input->start) {
+        game_start(state); 
+        return true; 
+    }
+
+
     return false;
 }
 

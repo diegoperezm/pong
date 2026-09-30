@@ -13,6 +13,10 @@
 #define PX_TO_M(px) ((px) * METERS_PER_PIXEL)
 #define M_TO_PX(m)  ((m) * PIXELS_PER_METER)
 
+static b2Vec2 pixel_to_meter(float x, float y) {
+    return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
+}
+
 // Ball System
 void         ball_pool_init(BallPool* pool);
 void         balls_clear(BallPool *balls);

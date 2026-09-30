@@ -58,24 +58,29 @@ void game_start(SimulationState *state) {
     );
 }
 
-
 void game_update(SimulationState *state, const GameInput *input, float dt) {
+    // Single state-machine transition handler
     if (state->mode == GAME_TITLE) {
         if (input->start) game_start(state);
         return;
     }
     
-    // Check for unpause
     if (state->mode == GAME_PAUSED) {
         if (input->pause) {
             state->mode = GAME_PLAYING;
         }
         return;
     }
+
+    if (state->mode == GAME_OVER) {
+        if (input->start) {
+            game_start(state);
+        }
+        return;
+    }
   
     if (state->mode != GAME_PLAYING) return;
     
-    // Check for pause
     if (input->pause) {
         state->mode = GAME_PAUSED;
         return;
@@ -84,6 +89,7 @@ void game_update(SimulationState *state, const GameInput *input, float dt) {
     state->game_time += dt;
     simulation_update(state, input, dt);
 }
+
 
 
 void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* snapshot) {
@@ -133,19 +139,3 @@ void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* sna
     }
 }
 
-
-bool game_handle_input(SimulationState *state, const GameInput *input) {
-    if (state->mode == GAME_TITLE && input->start) {
-        game_start(state);
-        return true; // Signal main.c to reset accumulator
-    } 
-    else if (state->mode == GAME_PLAYING && input->pause) {
-        state->mode = GAME_PAUSED;
-        return true; 
-    } 
-    else if (state->mode == GAME_PAUSED && input->pause) {
-        state->mode = GAME_PLAYING;
-        return true; 
-    }
-    return false;
-}

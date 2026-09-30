@@ -2,10 +2,6 @@
 #include <math.h>
 #include "log.h"
 
-static b2Vec2 pixel_to_meter(float x, float y) {
-    return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
-}
-
 void ball_pool_init(BallPool* pool) {
     pool->count     = 0; 
     pool->free_head = 0; 
@@ -133,28 +129,12 @@ bool ball_is_valid(const BallPool* pool, EntityHandle handle) {
 
     return pool->dense_to_sparse[dense_idx] == handle.index;
 }
-/*
-bool ball_is_valid(const BallPool* pool, EntityHandle handle) {
-    if (handle.index >= MAX_BALLS || handle.generation == 0) return false;
-
-    // 1. Verificación de generación (mitiga el problema ABA)
-    if (pool->slots[handle.index].generation != handle.generation) return false;
-
-    // 2. Verificación de vitalidad: el índice denso debe estar dentro del rango activo
-    uint32_t dense_idx = pool->slots[handle.index].dense_idx;
-    if (dense_idx >= pool->count) return false;
-
-    // 3. Integridad bidireccional: el elemento en el arreglo denso debe apuntar de regreso a este slot
-    return pool->dense_to_sparse[dense_idx] == handle.index;
-}
-*/
 
 void ball_destroy(BallPool* pool, EntityHandle handle) {
     if (!ball_is_valid(pool, handle)) return;
 
     uint32_t slot_idx = handle.index;
     Slot* slot = &pool->slots[slot_idx];
-
 
     uint32_t dead_dense = slot->dense_idx;
     uint32_t last_dense = --pool->count; 
@@ -183,8 +163,14 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
     pool->dense_to_sparse[last_dense] = INVALID_INDEX;
 
     slot->active = false;
-    slot->dense_idx = INVALID_INDEX; // Explicitly clear stale dense index
+    slot->dense_idx = INVALID_INDEX;
+    
+    // Safely increment generation, skipping reserved value 0 on wrap-around
     slot->generation++;
+    if (slot->generation == 0) {
+        slot->generation = 1;
+    }
+
     slot->next_free = pool->free_head;
     pool->free_head = slot_idx;
 

@@ -5,10 +5,6 @@
 #include <math.h>
 
 
-static b2Vec2 pixel_to_meter(float x, float y) {
-    return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
-}
-
 static void destroy_paddle_bodies(SimulationState* state) {
     if (b2Body_IsValid(state->player_body)) {
         b2DestroyBody(state->player_body);
@@ -20,6 +16,7 @@ static void destroy_paddle_bodies(SimulationState* state) {
     }
     state->enemy_body = b2_nullBodyId;
 }
+
 
 static b2BodyId create_static_box(b2WorldId world, float x, float y, float width, float height) {
     if (!b2World_IsValid(world)) return b2_nullBodyId;
@@ -36,7 +33,13 @@ static b2BodyId create_static_box(b2WorldId world, float x, float y, float width
     shape_def.material.restitution = 1.0f;
     
     b2Polygon box = b2MakeBox(PX_TO_M(width * 0.5f), PX_TO_M(height * 0.5f));
-    b2CreatePolygonShape(body, &shape_def, &box);
+    b2ShapeId shape_id = b2CreatePolygonShape(body, &shape_def, &box);
+
+    if (!b2Shape_IsValid(shape_id)) {
+        b2DestroyBody(body);
+        return b2_nullBodyId;
+    }
+
     return body;
 }
 
@@ -55,9 +58,19 @@ static b2BodyId create_paddle_body(b2WorldId world, const Paddle *paddle) {
     shape_def.material.restitution = 1.0f;
     
     b2Polygon box = b2MakeBox(PX_TO_M(paddle->width * 0.5f), PX_TO_M(paddle->height * 0.5f));
-    b2CreatePolygonShape(body, &shape_def, &box);
+    b2ShapeId shape_id = b2CreatePolygonShape(body, &shape_def, &box);
+
+    if (!b2Shape_IsValid(shape_id)) {
+        b2DestroyBody(body);
+        return b2_nullBodyId;
+    }
+
     return body;
 }
+
+
+
+
 
 static void create_walls(b2WorldId world) {
     create_static_box(world, COURT_LEFT, COURT_TOP - 10.0f, COURT_RIGHT - COURT_LEFT, 10.0f);
@@ -69,26 +82,48 @@ static void sync_physics_to_state(SimulationState *state) {
         b2Vec2 pos = b2Body_GetPosition(state->player_body);
         float y = M_TO_PX(pos.y) - state->player.height * 0.5f;
         
-        // CORRECTION: Hard clamp player position to prevent overshoots
+        bool clamped = false;
         if (y < COURT_TOP) {
             y = COURT_TOP;
+            clamped = true;
         } else if (y > COURT_BOTTOM - state->player.height) {
             y = COURT_BOTTOM - state->player.height;
+            clamped = true;
         }
         state->player.y = y;
+
+        // Sync Box2D kinematic body position back to clamped court boundaries
+        if (clamped) {
+            b2Vec2 clamped_pos = pixel_to_meter(
+                state->player.x + state->player.width * 0.5f,
+                y + state->player.height * 0.5f
+            );
+            b2Body_SetTransform(state->player_body, clamped_pos, b2Body_GetRotation(state->player_body));
+        }
     }
     
     if (b2Body_IsValid(state->enemy_body)) {
         b2Vec2 pos = b2Body_GetPosition(state->enemy_body);
         float y = M_TO_PX(pos.y) - state->enemy.height * 0.5f;
         
-        // CORRECTION: Hard clamp enemy position to prevent overshoots
+        bool clamped = false;
         if (y < COURT_TOP) {
             y = COURT_TOP;
+            clamped = true;
         } else if (y > COURT_BOTTOM - state->enemy.height) {
             y = COURT_BOTTOM - state->enemy.height;
+            clamped = true;
         }
         state->enemy.y = y;
+
+        // Sync Box2D kinematic body position back to clamped court boundaries
+        if (clamped) {
+            b2Vec2 clamped_pos = pixel_to_meter(
+                state->enemy.x + state->enemy.width * 0.5f,
+                y + state->enemy.height * 0.5f
+            );
+            b2Body_SetTransform(state->enemy_body, clamped_pos, b2Body_GetRotation(state->enemy_body));
+        }
     }
 
     BallPool *balls = &state->balls;
