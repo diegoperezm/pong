@@ -1,6 +1,8 @@
 #include "raylib.h"
 #include "game.h"
 #include "input.h"
+#include "log.h"
+#include "debug.h"
 #include "render.h"
 #include "simulation.h"
 #include "types.h"
@@ -22,6 +24,19 @@ int main(void) {
 
     game_init(&state);
 
+    // En main.c (dentro del inicio)
+    log_init();
+    log_enable(PONG_LOG_GAME);
+    log_enable(PONG_LOG_SIMULATION);
+    log_enable(PONG_LOG_ENTITY);
+    
+    DebugState debug;
+    debug_init(&debug);
+    debug.enabled = 1;
+    debug.show_collisions = 1;
+    debug.show_velocity = 1;
+
+
     game_make_render_snapshot(&state, &previous);
     game_make_render_snapshot(&state, &current);
 
@@ -33,6 +48,11 @@ int main(void) {
         double frame_time = GetFrameTime();
         if (frame_time > MAX_FRAME_TIME)
             frame_time = MAX_FRAME_TIME;
+
+      // En el bucle principal de main.c:
+      debug_update(&debug, &state, (float)frame_time);
+
+
 
         GameMode prev_mode = state.mode;
 

@@ -3,6 +3,11 @@
 #include "raylib.h"
 #include <stdio.h>
 
+static void debug_draw_collisions(const SimulationState *state);
+static void debug_draw_velocity(const SimulationState *state);
+
+
+
 void debug_init(DebugState *debug) {
     debug->enabled         = 0;
     debug->show_collisions = 0;

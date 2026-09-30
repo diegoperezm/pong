@@ -16,9 +16,6 @@ void debug_draw(
     const SimulationState *state
 );
 
-static void debug_draw_collisions(const SimulationState *state);
-static void debug_draw_velocity(const SimulationState *state);
-
 #endif
 
 

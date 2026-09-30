@@ -3,7 +3,7 @@
 #include "types.h"
 #include <stdint.h>
 #include <stdbool.h>
-//#include "box2d/box2d.h"
+#include "box2d/box2d.h"
 
 
 // Physics unit scaling helpers (30 pixels = 1 meter)

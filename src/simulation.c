@@ -18,6 +18,23 @@ static void destroy_paddle_bodies(SimulationState* state) {
 }
 
 
+void simulation_reset_paddles(SimulationState *state) {
+    if (b2Body_IsValid(state->player_body)) {
+        b2Vec2 pos = pixel_to_meter(state->player.x + state->player.width * 0.5f,
+                                   state->player.y + state->player.height * 0.5f);
+        b2Body_SetTransform(state->player_body, pos, (b2Rot){1.0f, 0.0f});
+        b2Body_SetLinearVelocity(state->player_body, (b2Vec2){0.0f, 0.0f});
+    }
+
+    if (b2Body_IsValid(state->enemy_body)) {
+        b2Vec2 pos = pixel_to_meter(state->enemy.x + state->enemy.width * 0.5f,
+                                   state->enemy.y + state->enemy.height * 0.5f);
+        b2Body_SetTransform(state->enemy_body, pos, (b2Rot){1.0f, 0.0f});
+        b2Body_SetLinearVelocity(state->enemy_body, (b2Vec2){0.0f, 0.0f});
+    }
+}
+
+
 static b2BodyId create_static_box(b2WorldId world, float x, float y, float width, float height) {
     if (!b2World_IsValid(world)) return b2_nullBodyId;
 
@@ -80,50 +97,12 @@ static void create_walls(b2WorldId world) {
 static void sync_physics_to_state(SimulationState *state) {
     if (b2Body_IsValid(state->player_body)) {
         b2Vec2 pos = b2Body_GetPosition(state->player_body);
-        float y = M_TO_PX(pos.y) - state->player.height * 0.5f;
-        
-        bool clamped = false;
-        if (y < COURT_TOP) {
-            y = COURT_TOP;
-            clamped = true;
-        } else if (y > COURT_BOTTOM - state->player.height) {
-            y = COURT_BOTTOM - state->player.height;
-            clamped = true;
-        }
-        state->player.y = y;
-
-        // Sync Box2D kinematic body position back to clamped court boundaries
-        if (clamped) {
-            b2Vec2 clamped_pos = pixel_to_meter(
-                state->player.x + state->player.width * 0.5f,
-                y + state->player.height * 0.5f
-            );
-            b2Body_SetTransform(state->player_body, clamped_pos, b2Body_GetRotation(state->player_body));
-        }
+        state->player.y = M_TO_PX(pos.y) - state->player.height * 0.5f;
     }
     
     if (b2Body_IsValid(state->enemy_body)) {
         b2Vec2 pos = b2Body_GetPosition(state->enemy_body);
-        float y = M_TO_PX(pos.y) - state->enemy.height * 0.5f;
-        
-        bool clamped = false;
-        if (y < COURT_TOP) {
-            y = COURT_TOP;
-            clamped = true;
-        } else if (y > COURT_BOTTOM - state->enemy.height) {
-            y = COURT_BOTTOM - state->enemy.height;
-            clamped = true;
-        }
-        state->enemy.y = y;
-
-        // Sync Box2D kinematic body position back to clamped court boundaries
-        if (clamped) {
-            b2Vec2 clamped_pos = pixel_to_meter(
-                state->enemy.x + state->enemy.width * 0.5f,
-                y + state->enemy.height * 0.5f
-            );
-            b2Body_SetTransform(state->enemy_body, clamped_pos, b2Body_GetRotation(state->enemy_body));
-        }
+        state->enemy.y = M_TO_PX(pos.y) - state->enemy.height * 0.5f;
     }
 
     BallPool *balls = &state->balls;
@@ -141,25 +120,27 @@ static void sync_physics_to_state(SimulationState *state) {
 }
 
 
-static void player_system(SimulationState *state, const GameInput *input) {
+static void player_system(SimulationState *state, const GameInput *input, float dt) {
     if (!b2Body_IsValid(state->player_body)) return;
 
     float velocity = 0.0f;
     if (input->up)   velocity -= state->player.speed;
     if (input->down) velocity += state->player.speed;
 
-    // CORRECTION: Zero out velocity if trying to move past boundaries
-    if (state->player.y <= COURT_TOP && velocity < 0.0f) {
-        velocity = 0.0f;
-    }
-    if (state->player.y >= COURT_BOTTOM - state->player.height && velocity > 0.0f) {
-        velocity = 0.0f;
+    // Predictive velocity clamping: cap velocity so paddle lands exactly on the bound after dt
+    if (dt > 0.0f) {
+        float next_y = state->player.y + velocity * dt;
+        if (next_y < COURT_TOP) {
+            velocity = (COURT_TOP - state->player.y) / dt;
+        } else if (next_y > COURT_BOTTOM - state->player.height) {
+            velocity = (COURT_BOTTOM - state->player.height - state->player.y) / dt;
+        }
     }
 
     b2Body_SetLinearVelocity(state->player_body, (b2Vec2){0.0f, PX_TO_M(velocity)});
 }
 
-static void enemy_system(SimulationState *state) {
+static void enemy_system(SimulationState *state, float dt) {
     if (!b2Body_IsValid(state->enemy_body)) return;
 
     BallPool *balls = &state->balls;
@@ -192,12 +173,14 @@ static void enemy_system(SimulationState *state) {
             velocity = (diff < 0.0f) ? -state->enemy.speed : state->enemy.speed;
         }
 
-        // CORRECTION: Zero out velocity if enemy hits court boundaries
-        if (state->enemy.y <= COURT_TOP && velocity < 0.0f) {
-            velocity = 0.0f;
-        }
-        if (state->enemy.y >= COURT_BOTTOM - state->enemy.height && velocity > 0.0f) {
-            velocity = 0.0f;
+        // Predictive velocity clamping for AI
+        if (dt > 0.0f) {
+            float next_y = state->enemy.y + velocity * dt;
+            if (next_y < COURT_TOP) {
+                velocity = (COURT_TOP - state->enemy.y) / dt;
+            } else if (next_y > COURT_BOTTOM - state->enemy.height) {
+                velocity = (COURT_BOTTOM - state->enemy.height - state->enemy.y) / dt;
+            }
         }
 
         b2Body_SetLinearVelocity(state->enemy_body, (b2Vec2){0.0f, PX_TO_M(velocity)});
@@ -278,8 +261,8 @@ void simulation_init(SimulationState *state) {
 
 void simulation_reset(SimulationState *state) {
     if (!b2World_IsValid(state->world)) return;
-    
-    destroy_paddle_bodies(state);
+      simulation_reset_paddles(state);  
+//    destroy_paddle_bodies(state);
     balls_clear(&state->balls);
 }
 
@@ -287,6 +270,7 @@ void simulation_shutdown(SimulationState *state) {
     if (!b2World_IsValid(state->world)) return;
 
     destroy_paddle_bodies(state);
+    balls_clear(&state->balls);
 
     if (b2World_IsValid(state->world)) {
         b2DestroyWorld(state->world);
@@ -304,8 +288,8 @@ void simulation_update(SimulationState *state, const GameInput *input, float dt)
     if (!b2Body_IsValid(state->enemy_body))
         state->enemy_body = create_paddle_body(state->world, &state->enemy);
 
-    player_system(state, input);
-    enemy_system(state);
+    player_system(state, input, dt);
+    enemy_system(state, dt);
 
     b2World_Step(state->world, dt, 4);
 
@@ -315,6 +299,8 @@ void simulation_update(SimulationState *state, const GameInput *input, float dt)
     particles_update(&state->particles, dt);
     powerups_update(&state->powerups, dt);
 }
+
+
 
 
 

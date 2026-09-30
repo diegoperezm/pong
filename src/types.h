@@ -77,6 +77,10 @@ typedef struct {
   float lifetime[MAX_PARTICLES];
   float max_lifetime[MAX_PARTICLES];
   float size[MAX_PARTICLES];
+
+  // control de ranuras libres en O(1)
+  int free_head;
+  int next_free[MAX_PARTICLES];
 } ParticlePool;
 
 typedef struct {

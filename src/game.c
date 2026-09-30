@@ -58,16 +58,20 @@ void game_start(SimulationState *state) {
     );
 }
 
-void game_update(SimulationState *state, const GameInput *input, float dt) {
+void game_update(SimulationState *state, GameInput *input, float dt) {
     // Single state-machine transition handler
     if (state->mode == GAME_TITLE) {
-        if (input->start) game_start(state);
+        if (input->start) {
+            game_start(state);
+            input->start = false; // Consumir input
+        }
         return;
     }
     
     if (state->mode == GAME_PAUSED) {
         if (input->pause) {
             state->mode = GAME_PLAYING;
+            input->pause = false; // Consumir input para evitar la trampa de pausa
         }
         return;
     }
@@ -75,6 +79,7 @@ void game_update(SimulationState *state, const GameInput *input, float dt) {
     if (state->mode == GAME_OVER) {
         if (input->start) {
             game_start(state);
+            input->start = false; // Consumir input
         }
         return;
     }
@@ -83,14 +88,14 @@ void game_update(SimulationState *state, const GameInput *input, float dt) {
     
     if (input->pause) {
         state->mode = GAME_PAUSED;
+        input->pause = false; // Consumir input
         return;
     }
   
     state->game_time += dt;
+    // simulation_update usará un input donde la pausa ya fue procesada y limpiada
     simulation_update(state, input, dt);
 }
-
-
 
 void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* snapshot) {
     snapshot->player_x     = state->player.x;

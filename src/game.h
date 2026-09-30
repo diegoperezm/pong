@@ -15,7 +15,7 @@ game_start(
 
 void game_update(
   SimulationState *state,
-  const GameInput *input,
+  GameInput *input,
   float dt
 );
 

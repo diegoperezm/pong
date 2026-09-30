@@ -177,46 +177,62 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
     LOG_ENTITY("ball destroyed: slot=%u", slot_idx);
 }
 
+
 void particles_clear(ParticlePool *particles) {
+    particles->free_head = 0;
+
     for (int i = 0; i < MAX_PARTICLES; ++i) {
         particles->active[i] = 0;
+        // Apuntar al siguiente elemento disponible; -1 indica el final de la lista
+        particles->next_free[i] = (i + 1 < MAX_PARTICLES) ? (i + 1) : -1;
     }
 }
+
 
 void particles_spawn(ParticlePool *particles, float x, float y, float vx, float vy, float lifetime, float size) {
-    int slot = -1;
-    for (int i = 0; i < MAX_PARTICLES; ++i) {
-        if (!particles->active[i]) {
-            slot = i;
-            break;
-        }
-    }
-    if (slot < 0) return;
+    // Si free_head es -1, la reserva de partículas está llena
+    if (particles->free_head < 0) return;
 
-    particles->active[slot] = 1;
-    particles->x[slot] = x;
-    particles->y[slot] = y;
-    particles->vx[slot] = vx;
-    particles->vy[slot] = vy;
+    // Extraer ranura libre en O(1)
+    int slot = particles->free_head;
+    particles->free_head = particles->next_free[slot];
+
+    particles->active[slot]       = 1;
+    particles->x[slot]            = x;
+    particles->y[slot]            = y;
+    particles->vx[slot]           = vx;
+    particles->vy[slot]           = vy;
     particles->max_lifetime[slot] = lifetime;
-    particles->lifetime[slot] = lifetime;
-    particles->size[slot] = size;
+    particles->lifetime[slot]     = lifetime;
+    particles->size[slot]         = size;
 }
 
+
 void particles_update(ParticlePool *particles, float dt) {
+    // Amortiguación independiente de la tasa de refresco (base normalizada a 60 FPS)
+    float damping = powf(0.98f, dt * 60.0f);
+
     for (int i = 0; i < MAX_PARTICLES; ++i) {
         if (!particles->active[i]) continue;
+
         particles->lifetime[i] -= dt;
         if (particles->lifetime[i] <= 0.0f) {
             particles->active[i] = 0;
+
+            // Devolver la ranura a la lista de libres en O(1)
+            particles->next_free[i] = particles->free_head;
+            particles->free_head    = i;
             continue;
         }
-        particles->x[i] += particles->vx[i] * dt;
-        particles->y[i] += particles->vy[i] * dt;
-        particles->vx[i] *= 0.98f;
-        particles->vy[i] *= 0.98f;
+
+        particles->x[i]  += particles->vx[i] * dt;
+        particles->y[i]  += particles->vy[i] * dt;
+        particles->vx[i] *= damping; // Aplicación del factor ajustado a dt
+        particles->vy[i] *= damping;
     }
 }
+
+
 
 void powerups_clear(PowerupPool *powerups) {
     for (int i = 0; i < MAX_POWERUPS; ++i) {

@@ -132,19 +132,19 @@ draw_particles(const RenderSnapshot *snapshot)
     if (!snapshot->particles[i].active)
     continue;
 
-    float life =
-    snapshot->particles[i].lifetime /
-    snapshot->particles[i].max_lifetime;
 
-    int alpha = (int)(life * 255.0f);
+   float max_life = snapshot->particles[i].max_lifetime;
+   float life = (max_life > 0.0f) ? (snapshot->particles[i].lifetime / max_life) : 0.0f;
 
-    if (alpha < 0) 
+   int alpha = (int)(life * 255.0f);
+
+   if (alpha < 0) 
       alpha = 0;
     
-    if (alpha > 255) 
+   if (alpha > 255) 
       alpha = 255;
   
-    Color color = {
+   Color color = {
       255,
       255,
       255,
@@ -251,7 +251,13 @@ render_frame(
 {
   BeginDrawing();
   ClearBackground(BLACK);
-  
+
+
+//    if (debug && sim_state) {
+ //       debug_draw(debug, sim_state);
+  //  }
+   
+
   switch (current->mode) {
     case GAME_TITLE:
       draw_title();

@@ -1,9 +1,39 @@
+debug.h
+
+#ifndef DEBUG_H
+#define DEBUG_H
+
+#include "types.h"
+
+void debug_init(DebugState *debug);
+
+void debug_update(
+    DebugState *debug,
+    const SimulationState *state,
+    float frame_time
+);
+
+void debug_draw(
+    const DebugState *debug,
+    const SimulationState *state
+);
+
+#endif
+
+
+
+
 debug.c
 
 #include "config.h"
 #include "debug.h"
 #include "raylib.h"
 #include <stdio.h>
+
+static void debug_draw_collisions(const SimulationState *state);
+static void debug_draw_velocity(const SimulationState *state);
+
+
 
 void debug_init(DebugState *debug) {
     debug->enabled         = 0;
@@ -178,15 +208,54 @@ void debug_draw_velocity(const SimulationState *state) {
 
 
 
+entities.h
+
+#ifndef ENTITIES_H
+#define ENTITIES_H
+#include "types.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include "box2d/box2d.h"
+
+
+// Physics unit scaling helpers (30 pixels = 1 meter)
+#define METERS_PER_PIXEL    (1.0f / 30.0f)
+#define PIXELS_PER_METER    30.0f
+
+#define PX_TO_M(px) ((px) * METERS_PER_PIXEL)
+#define M_TO_PX(m)  ((m) * PIXELS_PER_METER)
+
+static b2Vec2 pixel_to_meter(float x, float y) {
+    return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
+}
+
+// Ball System
+void         ball_pool_init(BallPool* pool);
+void         balls_clear(BallPool *balls);
+EntityHandle ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction);
+bool         ball_is_valid(const BallPool* pool, EntityHandle handle);
+void         ball_destroy(BallPool* pool, EntityHandle handle);
+
+// Particle System
+void particles_clear(ParticlePool *particles);
+void particles_spawn(ParticlePool *particles, float x, float y, float vx, float vy, float lifetime, float size);
+void particles_update(ParticlePool *particles, float dt);
+
+// Powerup System
+void powerups_clear(PowerupPool *powerups);
+int  powerup_create(PowerupPool *powerups, float x, float y, PowerupType type);
+void powerups_update(PowerupPool *powerups, float dt);
+
+#endif // ENTITIES_H
+
+
+
+
 entities.c
 
 #include "entities.h"
 #include <math.h>
 #include "log.h"
-
-static b2Vec2 pixel_to_meter(float x, float y) {
-    return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
-}
 
 void ball_pool_init(BallPool* pool) {
     pool->count     = 0; 
@@ -315,28 +384,12 @@ bool ball_is_valid(const BallPool* pool, EntityHandle handle) {
 
     return pool->dense_to_sparse[dense_idx] == handle.index;
 }
-/*
-bool ball_is_valid(const BallPool* pool, EntityHandle handle) {
-    if (handle.index >= MAX_BALLS || handle.generation == 0) return false;
-
-    // 1. Verificación de generación (mitiga el problema ABA)
-    if (pool->slots[handle.index].generation != handle.generation) return false;
-
-    // 2. Verificación de vitalidad: el índice denso debe estar dentro del rango activo
-    uint32_t dense_idx = pool->slots[handle.index].dense_idx;
-    if (dense_idx >= pool->count) return false;
-
-    // 3. Integridad bidireccional: el elemento en el arreglo denso debe apuntar de regreso a este slot
-    return pool->dense_to_sparse[dense_idx] == handle.index;
-}
-*/
 
 void ball_destroy(BallPool* pool, EntityHandle handle) {
     if (!ball_is_valid(pool, handle)) return;
 
     uint32_t slot_idx = handle.index;
     Slot* slot = &pool->slots[slot_idx];
-
 
     uint32_t dead_dense = slot->dense_idx;
     uint32_t last_dense = --pool->count; 
@@ -365,54 +418,76 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
     pool->dense_to_sparse[last_dense] = INVALID_INDEX;
 
     slot->active = false;
-    slot->dense_idx = INVALID_INDEX; // Explicitly clear stale dense index
+    slot->dense_idx = INVALID_INDEX;
+    
+    // Safely increment generation, skipping reserved value 0 on wrap-around
     slot->generation++;
+    if (slot->generation == 0) {
+        slot->generation = 1;
+    }
+
     slot->next_free = pool->free_head;
     pool->free_head = slot_idx;
 
     LOG_ENTITY("ball destroyed: slot=%u", slot_idx);
 }
 
+
 void particles_clear(ParticlePool *particles) {
+    particles->free_head = 0;
+
     for (int i = 0; i < MAX_PARTICLES; ++i) {
         particles->active[i] = 0;
+        // Apuntar al siguiente elemento disponible; -1 indica el final de la lista
+        particles->next_free[i] = (i + 1 < MAX_PARTICLES) ? (i + 1) : -1;
     }
 }
+
 
 void particles_spawn(ParticlePool *particles, float x, float y, float vx, float vy, float lifetime, float size) {
-    int slot = -1;
-    for (int i = 0; i < MAX_PARTICLES; ++i) {
-        if (!particles->active[i]) {
-            slot = i;
-            break;
-        }
-    }
-    if (slot < 0) return;
+    // Si free_head es -1, la reserva de partículas está llena
+    if (particles->free_head < 0) return;
 
-    particles->active[slot] = 1;
-    particles->x[slot] = x;
-    particles->y[slot] = y;
-    particles->vx[slot] = vx;
-    particles->vy[slot] = vy;
+    // Extraer ranura libre en O(1)
+    int slot = particles->free_head;
+    particles->free_head = particles->next_free[slot];
+
+    particles->active[slot]       = 1;
+    particles->x[slot]            = x;
+    particles->y[slot]            = y;
+    particles->vx[slot]           = vx;
+    particles->vy[slot]           = vy;
     particles->max_lifetime[slot] = lifetime;
-    particles->lifetime[slot] = lifetime;
-    particles->size[slot] = size;
+    particles->lifetime[slot]     = lifetime;
+    particles->size[slot]         = size;
 }
 
+
 void particles_update(ParticlePool *particles, float dt) {
+    // Amortiguación independiente de la tasa de refresco (base normalizada a 60 FPS)
+    float damping = powf(0.98f, dt * 60.0f);
+
     for (int i = 0; i < MAX_PARTICLES; ++i) {
         if (!particles->active[i]) continue;
+
         particles->lifetime[i] -= dt;
         if (particles->lifetime[i] <= 0.0f) {
             particles->active[i] = 0;
+
+            // Devolver la ranura a la lista de libres en O(1)
+            particles->next_free[i] = particles->free_head;
+            particles->free_head    = i;
             continue;
         }
-        particles->x[i] += particles->vx[i] * dt;
-        particles->y[i] += particles->vy[i] * dt;
-        particles->vx[i] *= 0.98f;
-        particles->vy[i] *= 0.98f;
+
+        particles->x[i]  += particles->vx[i] * dt;
+        particles->y[i]  += particles->vy[i] * dt;
+        particles->vx[i] *= damping; // Aplicación del factor ajustado a dt
+        particles->vy[i] *= damping;
     }
 }
+
+
 
 void powerups_clear(PowerupPool *powerups) {
     for (int i = 0; i < MAX_POWERUPS; ++i) {
@@ -443,6 +518,38 @@ void powerups_update(PowerupPool *powerups, float dt) {
 }
 
 
+
+
+game.h
+
+#ifndef GAME_H
+#define GAME_H
+
+#include "types.h"
+
+void
+game_init(
+  SimulationState* state
+);
+
+void 
+game_start(
+  SimulationState*state
+);
+
+void game_update(
+  SimulationState *state,
+  GameInput *input,
+  float dt
+);
+
+// Copy ONLY rendering-relevant simulation data.
+void game_make_render_snapshot(
+    const SimulationState *state,
+    RenderSnapshot *snapshot
+);
+
+#endif
 
 
 game.c
@@ -507,33 +614,44 @@ void game_start(SimulationState *state) {
     );
 }
 
-
-void game_update(SimulationState *state, const GameInput *input, float dt) {
+void game_update(SimulationState *state, GameInput *input, float dt) {
+    // Single state-machine transition handler
     if (state->mode == GAME_TITLE) {
-        if (input->start) game_start(state);
+        if (input->start) {
+            game_start(state);
+            input->start = false; // Consumir input
+        }
         return;
     }
     
-    // Check for unpause
     if (state->mode == GAME_PAUSED) {
         if (input->pause) {
             state->mode = GAME_PLAYING;
+            input->pause = false; // Consumir input para evitar la trampa de pausa
+        }
+        return;
+    }
+
+    if (state->mode == GAME_OVER) {
+        if (input->start) {
+            game_start(state);
+            input->start = false; // Consumir input
         }
         return;
     }
   
     if (state->mode != GAME_PLAYING) return;
     
-    // Check for pause
     if (input->pause) {
         state->mode = GAME_PAUSED;
+        input->pause = false; // Consumir input
         return;
     }
   
     state->game_time += dt;
+    // simulation_update usará un input donde la pausa ya fue procesada y limpiada
     simulation_update(state, input, dt);
 }
-
 
 void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* snapshot) {
     snapshot->player_x     = state->player.x;
@@ -583,27 +701,20 @@ void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* sna
 }
 
 
-bool game_handle_input(SimulationState *state, const GameInput *input) {
-    if (state->mode == GAME_TITLE && input->start) {
-        game_start(state);
-        return true; // Signal main.c to reset accumulator
-    } 
-    else if (state->mode == GAME_PLAYING && input->pause) {
-        state->mode = GAME_PAUSED;
-        return true; 
-    } 
-    else if (state->mode == GAME_PAUSED && input->pause) {
-        state->mode = GAME_PLAYING;
-        return true; 
-    }
-    else if (state->mode == GAME_OVER && input->start) {
-        game_start(state); 
-        return true; 
-    }
 
+input.h
 
-    return false;
-}
+#ifndef INPUT_H
+#define INPUT_H
+
+#include "types.h"
+
+void input_sample(
+  GameInput *input
+);
+
+#endif
+
 
 
 input.c
@@ -624,6 +735,84 @@ void input_sample(GameInput *input)
 
 
 
+
+
+log.h
+
+#ifndef LOG_H
+#define LOG_H
+
+#include <stdint.h>
+
+#define LOG_CATEGORIES(X)              \
+X(PONG_LOG_GAME,       "GAME")         \
+X(PONG_LOG_INPUT,      "INPUT")        \
+X(PONG_LOG_SIMULATION, "SIMULATION")   \
+X(PONG_LOG_COLLISION,  "COLLISION")    \
+X(PONG_LOG_ENTITY,     "ENTITY")       \
+X(PONG_LOG_AI,         "AI")           \
+X(PONG_LOG_RENDER,     "RENDER")       \
+X(PONG_LOG_DEBUG,      "DEBUG")        \
+
+
+#define LOG_CATEGORY_ENUM(category, name) category,
+
+typedef enum
+{
+LOG_CATEGORIES(LOG_CATEGORY_ENUM)
+LOG_COUNT
+} LogCategory;
+
+#undef LOG_CATEGORY_ENUM
+
+#define LOG_CATEGORY_NAME(category, name) [category] = name,
+
+static const char* log_category_name[LOG_COUNT] =
+{
+LOG_CATEGORIES(LOG_CATEGORY_NAME)
+};
+
+#undef LOG_CATEGORY_NAME
+
+void log_init(void);
+
+void log_enable(LogCategory category);
+void log_disable(LogCategory category);
+int log_is_enabled(LogCategory category);
+
+void log_message(
+  LogCategory category,
+  const char* file,
+  int line,
+  const char* format,
+  ...
+);
+
+#define LOG_GAME(...)      \
+ log_message(PONG_LOG_GAME, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_INPUT(...)      \
+ log_message(PONG_LOG_INPUT, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_SIMULATION(...) \
+ log_message(PONG_LOG_SIMULATION, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_COLLISION(...)  \
+ log_message(PONG_LOG_COLLISION, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_ENTITY(...)     \
+ log_message(PONG_LOG_ENTITY, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_AI(...)         \
+ log_message(PONG_LOG_AI, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_RENDER(...)     \
+ log_message(PONG_LOG_RENDER, __FILE__, __LINE__, __VA_ARGS__)
+
+#define LOG_DEBUG(...)      \
+ log_message(PONG_LOG_DEBUG, __FILE__, __LINE__, __VA_ARGS__)
+
+#endif
 
 
 log.c
@@ -709,96 +898,145 @@ main.c
 #include "raylib.h"
 #include "game.h"
 #include "input.h"
+#include "log.h"
+#include "debug.h"
 #include "render.h"
 #include "simulation.h"
 #include "types.h"
 
-int
-main(void)
-{
-  InitWindow(
-    SCREEN_WIDTH,
-    SCREEN_HEIGHT,
-    "Pong"
-  );
-
-  SetTargetFPS(60);
-
-  SimulationState state;
-  GameInput input;
-
-  RenderSnapshot previous = {0};
-  RenderSnapshot current  = {0};
-
-  game_init(&state);
-
-  game_make_render_snapshot(
-    &state,
-    &previous
-  );
-
-  game_make_render_snapshot(
-    &state,
-    &current
-  );
-
-
-  double accumulator = 0.0;
-
-while (!WindowShouldClose()) {
-    input_sample(&input);
-
-    double frame_time = GetFrameTime();
-    if (frame_time > MAX_FRAME_TIME)
-        frame_time = MAX_FRAME_TIME;
-
-    // Game module owns all state transitions and input logic
-    if (game_handle_input(&state, &input)) {
-        accumulator = 0.0; // Prevent catch-up jumps on state changes
-    }
-
-    accumulator += frame_time;
-
-    /*
-     * Fixed-timestep simulation loop
-     */
-    while (state.mode == GAME_PLAYING && accumulator >= SIM_DT) {
-        previous = current;
-
-        game_update(
-            &state,
-            &input,
-            (float)SIM_DT
-        );
-        game_make_render_snapshot(
-            &state,
-            &current
-        );
-        accumulator -= SIM_DT;
-    }
-
-    // Ensure snapshots are fresh if paused, on title, or game over
-    if (state.mode != GAME_PLAYING) {
-        game_make_render_snapshot(&state, &current);
-        previous = current;
-    }
-
-    float alpha = (float)(accumulator / SIM_DT);
-
-    render_frame(
-        &previous,
-        &current,
-        alpha
+int main(void) {
+    InitWindow(
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
+        "Pong"
     );
+
+    SetTargetFPS(60);
+
+    SimulationState state;
+    GameInput input;
+
+    RenderSnapshot previous = {0};
+    RenderSnapshot current  = {0};
+
+    game_init(&state);
+
+    // En main.c (dentro del inicio)
+    log_init();
+    log_enable(PONG_LOG_GAME);
+    log_enable(PONG_LOG_SIMULATION);
+    log_enable(PONG_LOG_ENTITY);
+    
+    DebugState debug;
+    debug_init(&debug);
+    debug.enabled = 1;
+    debug.show_collisions = 1;
+    debug.show_velocity = 1;
+
+
+    game_make_render_snapshot(&state, &previous);
+    game_make_render_snapshot(&state, &current);
+
+    double accumulator = 0.0;
+
+    while (!WindowShouldClose()) {
+        input_sample(&input);
+
+        double frame_time = GetFrameTime();
+        if (frame_time > MAX_FRAME_TIME)
+            frame_time = MAX_FRAME_TIME;
+
+      // En el bucle principal de main.c:
+      debug_update(&debug, &state, (float)frame_time);
+
+
+
+        GameMode prev_mode = state.mode;
+
+        // Process state transitions directly through game_update
+        if (state.mode != GAME_PLAYING || input.pause) {
+            game_update(&state, &input, 0.0f);
+        }
+
+        // On any state transition, immediately synchronize render snapshots
+        if (state.mode != prev_mode) {
+            accumulator = 0.0;
+            game_make_render_snapshot(&state, &current);
+            previous = current;
+        }
+
+        // Fixed-timestep simulation loop
+        if (state.mode == GAME_PLAYING) {
+            accumulator += frame_time;
+
+            while (state.mode == GAME_PLAYING && accumulator >= SIM_DT) {
+                previous = current;
+
+                game_update(
+                    &state,
+                    &input,
+                    (float)SIM_DT
+                );
+                game_make_render_snapshot(
+                    &state,
+                    &current
+                );
+
+                accumulator -= SIM_DT;
+            }
+
+            // Capture state change triggered during simulation (e.g. GAME_OVER)
+            if (state.mode != GAME_PLAYING) {
+                accumulator = 0.0;
+                game_make_render_snapshot(&state, &current);
+                previous = current;
+            }
+        }
+
+        float alpha = (state.mode == GAME_PLAYING) ? (float)(accumulator / SIM_DT) : 1.0f;
+
+        // Durante la fase de dibujo en render_frame o como capa superior:
+         debug_draw(&debug, &state);
+
+        render_frame(
+            &previous,
+            &current,
+            alpha
+        );
+    }
+
+    simulation_shutdown(&state);
+    CloseWindow();
+
+    return 0;
 }
 
 
+render.h
 
-  simulation_shutdown(&state);
-  CloseWindow();
+#ifndef RENDER_H
+#define RENDER_H
 
-  return 0;
-}
+#include "types.h"
+
+void
+render_init(
+void
+);
+
+void
+render_shutdown(
+void
+);
+
+void
+render_frame(
+const RenderSnapshot *previous,
+const RenderSnapshot *current,
+float alpha
+);
+
+#endif
 
 
 
@@ -1094,6 +1332,25 @@ render_frame(
 
 
 
+simulation.h
+
+#ifndef SIMULATION_H
+#define SIMULATION_H
+
+#include "types.h"
+
+void simulation_init(SimulationState *state);
+void simulation_reset(SimulationState *state);
+void simulation_shutdown(SimulationState *state);
+void simulation_update(SimulationState *state, const GameInput *input, float dt);
+void simulation_reset_paddles(SimulationState *state);
+
+#endif // SIMULATION_H
+
+
+
+
+
 simulation.c
 
 #include "simulation.h"
@@ -1102,10 +1359,6 @@ simulation.c
 #include "raylib.h"
 #include <math.h>
 
-
-static b2Vec2 pixel_to_meter(float x, float y) {
-    return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
-}
 
 static void destroy_paddle_bodies(SimulationState* state) {
     if (b2Body_IsValid(state->player_body)) {
@@ -1118,6 +1371,24 @@ static void destroy_paddle_bodies(SimulationState* state) {
     }
     state->enemy_body = b2_nullBodyId;
 }
+
+
+void simulation_reset_paddles(SimulationState *state) {
+    if (b2Body_IsValid(state->player_body)) {
+        b2Vec2 pos = pixel_to_meter(state->player.x + state->player.width * 0.5f,
+                                   state->player.y + state->player.height * 0.5f);
+        b2Body_SetTransform(state->player_body, pos, (b2Rot){1.0f, 0.0f});
+        b2Body_SetLinearVelocity(state->player_body, (b2Vec2){0.0f, 0.0f});
+    }
+
+    if (b2Body_IsValid(state->enemy_body)) {
+        b2Vec2 pos = pixel_to_meter(state->enemy.x + state->enemy.width * 0.5f,
+                                   state->enemy.y + state->enemy.height * 0.5f);
+        b2Body_SetTransform(state->enemy_body, pos, (b2Rot){1.0f, 0.0f});
+        b2Body_SetLinearVelocity(state->enemy_body, (b2Vec2){0.0f, 0.0f});
+    }
+}
+
 
 static b2BodyId create_static_box(b2WorldId world, float x, float y, float width, float height) {
     if (!b2World_IsValid(world)) return b2_nullBodyId;
@@ -1134,7 +1405,13 @@ static b2BodyId create_static_box(b2WorldId world, float x, float y, float width
     shape_def.material.restitution = 1.0f;
     
     b2Polygon box = b2MakeBox(PX_TO_M(width * 0.5f), PX_TO_M(height * 0.5f));
-    b2CreatePolygonShape(body, &shape_def, &box);
+    b2ShapeId shape_id = b2CreatePolygonShape(body, &shape_def, &box);
+
+    if (!b2Shape_IsValid(shape_id)) {
+        b2DestroyBody(body);
+        return b2_nullBodyId;
+    }
+
     return body;
 }
 
@@ -1153,9 +1430,19 @@ static b2BodyId create_paddle_body(b2WorldId world, const Paddle *paddle) {
     shape_def.material.restitution = 1.0f;
     
     b2Polygon box = b2MakeBox(PX_TO_M(paddle->width * 0.5f), PX_TO_M(paddle->height * 0.5f));
-    b2CreatePolygonShape(body, &shape_def, &box);
+    b2ShapeId shape_id = b2CreatePolygonShape(body, &shape_def, &box);
+
+    if (!b2Shape_IsValid(shape_id)) {
+        b2DestroyBody(body);
+        return b2_nullBodyId;
+    }
+
     return body;
 }
+
+
+
+
 
 static void create_walls(b2WorldId world) {
     create_static_box(world, COURT_LEFT, COURT_TOP - 10.0f, COURT_RIGHT - COURT_LEFT, 10.0f);
@@ -1165,28 +1452,12 @@ static void create_walls(b2WorldId world) {
 static void sync_physics_to_state(SimulationState *state) {
     if (b2Body_IsValid(state->player_body)) {
         b2Vec2 pos = b2Body_GetPosition(state->player_body);
-        float y = M_TO_PX(pos.y) - state->player.height * 0.5f;
-        
-        // CORRECTION: Hard clamp player position to prevent overshoots
-        if (y < COURT_TOP) {
-            y = COURT_TOP;
-        } else if (y > COURT_BOTTOM - state->player.height) {
-            y = COURT_BOTTOM - state->player.height;
-        }
-        state->player.y = y;
+        state->player.y = M_TO_PX(pos.y) - state->player.height * 0.5f;
     }
     
     if (b2Body_IsValid(state->enemy_body)) {
         b2Vec2 pos = b2Body_GetPosition(state->enemy_body);
-        float y = M_TO_PX(pos.y) - state->enemy.height * 0.5f;
-        
-        // CORRECTION: Hard clamp enemy position to prevent overshoots
-        if (y < COURT_TOP) {
-            y = COURT_TOP;
-        } else if (y > COURT_BOTTOM - state->enemy.height) {
-            y = COURT_BOTTOM - state->enemy.height;
-        }
-        state->enemy.y = y;
+        state->enemy.y = M_TO_PX(pos.y) - state->enemy.height * 0.5f;
     }
 
     BallPool *balls = &state->balls;
@@ -1204,25 +1475,27 @@ static void sync_physics_to_state(SimulationState *state) {
 }
 
 
-static void player_system(SimulationState *state, const GameInput *input) {
+static void player_system(SimulationState *state, const GameInput *input, float dt) {
     if (!b2Body_IsValid(state->player_body)) return;
 
     float velocity = 0.0f;
     if (input->up)   velocity -= state->player.speed;
     if (input->down) velocity += state->player.speed;
 
-    // CORRECTION: Zero out velocity if trying to move past boundaries
-    if (state->player.y <= COURT_TOP && velocity < 0.0f) {
-        velocity = 0.0f;
-    }
-    if (state->player.y >= COURT_BOTTOM - state->player.height && velocity > 0.0f) {
-        velocity = 0.0f;
+    // Predictive velocity clamping: cap velocity so paddle lands exactly on the bound after dt
+    if (dt > 0.0f) {
+        float next_y = state->player.y + velocity * dt;
+        if (next_y < COURT_TOP) {
+            velocity = (COURT_TOP - state->player.y) / dt;
+        } else if (next_y > COURT_BOTTOM - state->player.height) {
+            velocity = (COURT_BOTTOM - state->player.height - state->player.y) / dt;
+        }
     }
 
     b2Body_SetLinearVelocity(state->player_body, (b2Vec2){0.0f, PX_TO_M(velocity)});
 }
 
-static void enemy_system(SimulationState *state) {
+static void enemy_system(SimulationState *state, float dt) {
     if (!b2Body_IsValid(state->enemy_body)) return;
 
     BallPool *balls = &state->balls;
@@ -1255,12 +1528,14 @@ static void enemy_system(SimulationState *state) {
             velocity = (diff < 0.0f) ? -state->enemy.speed : state->enemy.speed;
         }
 
-        // CORRECTION: Zero out velocity if enemy hits court boundaries
-        if (state->enemy.y <= COURT_TOP && velocity < 0.0f) {
-            velocity = 0.0f;
-        }
-        if (state->enemy.y >= COURT_BOTTOM - state->enemy.height && velocity > 0.0f) {
-            velocity = 0.0f;
+        // Predictive velocity clamping for AI
+        if (dt > 0.0f) {
+            float next_y = state->enemy.y + velocity * dt;
+            if (next_y < COURT_TOP) {
+                velocity = (COURT_TOP - state->enemy.y) / dt;
+            } else if (next_y > COURT_BOTTOM - state->enemy.height) {
+                velocity = (COURT_BOTTOM - state->enemy.height - state->enemy.y) / dt;
+            }
         }
 
         b2Body_SetLinearVelocity(state->enemy_body, (b2Vec2){0.0f, PX_TO_M(velocity)});
@@ -1341,8 +1616,8 @@ void simulation_init(SimulationState *state) {
 
 void simulation_reset(SimulationState *state) {
     if (!b2World_IsValid(state->world)) return;
-    
-    destroy_paddle_bodies(state);
+      simulation_reset_paddles(state);  
+//    destroy_paddle_bodies(state);
     balls_clear(&state->balls);
 }
 
@@ -1367,8 +1642,8 @@ void simulation_update(SimulationState *state, const GameInput *input, float dt)
     if (!b2Body_IsValid(state->enemy_body))
         state->enemy_body = create_paddle_body(state->world, &state->enemy);
 
-    player_system(state, input);
-    enemy_system(state);
+    player_system(state, input, dt);
+    enemy_system(state, dt);
 
     b2World_Step(state->world, dt, 4);
 
@@ -1378,6 +1653,8 @@ void simulation_update(SimulationState *state, const GameInput *input, float dt)
     particles_update(&state->particles, dt);
     powerups_update(&state->powerups, dt);
 }
+
+
 
 
 
