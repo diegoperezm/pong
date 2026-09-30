@@ -69,7 +69,7 @@ static int debug_count_powerups(const SimulationState *state) {
 }
 
 void debug_update(DebugState *debug, const SimulationState *state, float frame_time) {
-    if (debug == NULL || state == NULL) return;
+    if (debug == NULL || state == NULL || !debug->enabled) return;
 
     debug->frame_time = frame_time;
     debug->fps = (frame_time > 0.0f) ? (1.0f / frame_time) : 0.0f;
@@ -995,15 +995,25 @@ int main(void) {
 
         float alpha = (state.mode == GAME_PLAYING) ? (float)(accumulator / SIM_DT) : 1.0f;
 
-        // Durante la fase de dibujo en render_frame o como capa superior:
-         debug_draw(&debug, &state);
-
-        render_frame(
-            &previous,
-            &current,
-            alpha
-        );
-    }
+       // Render lifecycle
+       BeginDrawing();
+           ClearBackground(BLACK);
+   
+           // 1. Draw game world state
+           render_frame(
+               &previous,
+               &current,
+               alpha
+           );
+   
+           // 2. Overlay debug info safely inside the drawing context
+           if (debug.enabled) {
+               debug_draw(&debug, &state);
+           }
+   
+       EndDrawing();
+   
+   }
 
     simulation_shutdown(&state);
     CloseWindow();
@@ -1176,19 +1186,19 @@ draw_particles(const RenderSnapshot *snapshot)
     if (!snapshot->particles[i].active)
     continue;
 
-    float life =
-    snapshot->particles[i].lifetime /
-    snapshot->particles[i].max_lifetime;
 
-    int alpha = (int)(life * 255.0f);
+   float max_life = snapshot->particles[i].max_lifetime;
+   float life = (max_life > 0.0f) ? (snapshot->particles[i].lifetime / max_life) : 0.0f;
 
-    if (alpha < 0) 
+   int alpha = (int)(life * 255.0f);
+
+   if (alpha < 0) 
       alpha = 0;
     
-    if (alpha > 255) 
+   if (alpha > 255) 
       alpha = 255;
   
-    Color color = {
+   Color color = {
       255,
       255,
       255,
@@ -1293,9 +1303,7 @@ render_frame(
   float alpha
 )
 {
-  BeginDrawing();
-  ClearBackground(BLACK);
-  
+
   switch (current->mode) {
     case GAME_TITLE:
       draw_title();
@@ -1325,7 +1333,6 @@ render_frame(
       break;
  }
   
-  EndDrawing();
 }
 
 
@@ -1625,6 +1632,7 @@ void simulation_shutdown(SimulationState *state) {
     if (!b2World_IsValid(state->world)) return;
 
     destroy_paddle_bodies(state);
+    balls_clear(&state->balls);
 
     if (b2World_IsValid(state->world)) {
         b2DestroyWorld(state->world);

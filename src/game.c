@@ -21,12 +21,14 @@ void game_init(SimulationState *state) {
     memset(state, 0, sizeof(*state));
     state->mode = GAME_TITLE;
     
+    reset_paddles(state);
+
     simulation_init(state);
     
-    reset_paddles(state);
     ball_pool_init(&state->balls);
     particles_clear(&state->particles);
     powerups_clear(&state->powerups);
+
 }
 
 void game_start(SimulationState *state) {

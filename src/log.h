@@ -26,12 +26,9 @@ LOG_COUNT
 
 #define LOG_CATEGORY_NAME(category, name) [category] = name,
 
-static const char* log_category_name[LOG_COUNT] =
-{
-LOG_CATEGORIES(LOG_CATEGORY_NAME)
-};
-
 #undef LOG_CATEGORY_NAME
+
+extern const char* log_category_name[LOG_COUNT];
 
 void log_init(void);
 

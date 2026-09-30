@@ -42,7 +42,7 @@ static int debug_count_powerups(const SimulationState *state) {
 }
 
 void debug_update(DebugState *debug, const SimulationState *state, float frame_time) {
-    if (debug == NULL || state == NULL) return;
+    if (debug == NULL || state == NULL || !debug->enabled) return;
 
     debug->frame_time = frame_time;
     debug->fps = (frame_time > 0.0f) ? (1.0f / frame_time) : 0.0f;

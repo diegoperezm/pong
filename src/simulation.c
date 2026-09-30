@@ -63,6 +63,13 @@ static b2BodyId create_static_box(b2WorldId world, float x, float y, float width
 static b2BodyId create_paddle_body(b2WorldId world, const Paddle *paddle) {
     if (!b2World_IsValid(world)) return b2_nullBodyId;
 
+    // Safety check: ensure paddle dimensions are valid before creating Box2D shape
+    if (paddle->width <= 0.0f || paddle->height <= 0.0f) {
+        LOG_SIMULATION("Cannot create paddle body: invalid dimensions (w: %.1f, h: %.1f)", 
+                       paddle->width, paddle->height);
+        return b2_nullBodyId;
+    }
+
     b2BodyDef body_def = b2DefaultBodyDef();
     body_def.type = b2_kinematicBody;
     body_def.position = pixel_to_meter(paddle->x + paddle->width * 0.5f, paddle->y + paddle->height * 0.5f);
@@ -255,6 +262,10 @@ void simulation_init(SimulationState *state) {
     state->enemy_body  = b2_nullBodyId;
 
     create_walls(state->world);
+
+    // Explicitly create paddle bodies at startup
+    state->player_body = create_paddle_body(state->world, &state->player);
+    state->enemy_body  = create_paddle_body(state->world, &state->enemy);
 
     LOG_SIMULATION("Box2D initialized");
 }

@@ -249,14 +249,6 @@ render_frame(
   float alpha
 )
 {
-  BeginDrawing();
-  ClearBackground(BLACK);
-
-
-//    if (debug && sim_state) {
- //       debug_draw(debug, sim_state);
-  //  }
-   
 
   switch (current->mode) {
     case GAME_TITLE:
@@ -287,7 +279,6 @@ render_frame(
       break;
  }
   
-  EndDrawing();
 }
 
 

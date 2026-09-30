@@ -14,6 +14,7 @@ void ball_pool_init(BallPool* pool) {
             pool->slots[i].generation = 1;
         }
 	pool->slots[i].active = false;
+	pool->slots[i].dense_idx = INVALID_INDEX;
         pool->body[i] = b2_nullBodyId;
         pool->x[i]    = 0.0f;
         pool->y[i]    = 0.0f;

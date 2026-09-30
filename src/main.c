@@ -98,12 +98,25 @@ int main(void) {
 
         float alpha = (state.mode == GAME_PLAYING) ? (float)(accumulator / SIM_DT) : 1.0f;
 
-        render_frame(
-            &previous,
-            &current,
-            alpha
-        );
-    }
+       // Render lifecycle
+       BeginDrawing();
+           ClearBackground(BLACK);
+   
+           // 1. Draw game world state
+           render_frame(
+               &previous,
+               &current,
+               alpha
+           );
+   
+           // 2. Overlay debug info safely inside the drawing context
+           if (debug.enabled) {
+               debug_draw(&debug, &state);
+           }
+   
+       EndDrawing();
+   
+   }
 
     simulation_shutdown(&state);
     CloseWindow();

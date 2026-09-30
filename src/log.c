@@ -11,6 +11,13 @@
 
 static uint32_t enabled_categories;
 
+#define LOG_CATEGORY_NAME(category, name) [category] = name,
+
+const char* log_category_name[LOG_COUNT] = {
+    LOG_CATEGORIES(LOG_CATEGORY_NAME)
+};
+
+#undef LOG_CATEGORY_NAME
 
 void log_init(void)
 {
