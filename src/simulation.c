@@ -93,15 +93,27 @@ static b2BodyId create_paddle_body(b2WorldId world, const Paddle *paddle) {
 }
 
 
+static 
+void create_walls(b2WorldId world) 
+{
+  create_static_box(
+    world, 
+    COURT_LEFT,
+    COURT_TOP - 10.0f,
+    COURT_RIGHT - COURT_LEFT, 
+    10.0f);
 
-
-
-static void create_walls(b2WorldId world) {
-    create_static_box(world, COURT_LEFT, COURT_TOP - 10.0f, COURT_RIGHT - COURT_LEFT, 10.0f);
-    create_static_box(world, COURT_LEFT, COURT_BOTTOM, COURT_RIGHT - COURT_LEFT, 10.0f);
+  create_static_box(
+    world,
+    COURT_LEFT,
+    COURT_BOTTOM,
+    COURT_RIGHT - COURT_LEFT,
+    10.0f);
 }
 
-static void sync_physics_to_state(SimulationState *state) {
+static 
+void sync_physics_to_state(SimulationState *state) 
+{
     if (b2Body_IsValid(state->player_body)) {
         b2Vec2 pos = b2Body_GetPosition(state->player_body);
         state->player.y = M_TO_PX(pos.y) - state->player.height * 0.5f;
@@ -127,14 +139,20 @@ static void sync_physics_to_state(SimulationState *state) {
 }
 
 
-static void player_system(SimulationState *state, const GameInput *input, float dt) {
+static void player_system(
+    SimulationState *state,
+    const GameInput *input,
+    float dt) 
+{
+
     if (!b2Body_IsValid(state->player_body)) return;
 
     float velocity = 0.0f;
     if (input->up)   velocity -= state->player.speed;
     if (input->down) velocity += state->player.speed;
 
-    // Predictive velocity clamping: cap velocity so paddle lands exactly on the bound after dt
+    // Predictive velocity clamping: 
+    // cap velocity so paddle lands exactly on the bound after dt
     if (dt > 0.0f) {
         float next_y = state->player.y + velocity * dt;
         if (next_y < COURT_TOP) {
@@ -255,25 +273,24 @@ static void scoring_system(SimulationState *state) {
 
 void simulation_init(SimulationState *state) {
     b2WorldDef world_def = b2DefaultWorldDef();
-    world_def.gravity = (b2Vec2){0.0f, 0.0f};
+    world_def.gravity    = (b2Vec2){0.0f, 0.0f};
 
-    state->world = b2CreateWorld(&world_def);
-    state->player_body = b2_nullBodyId;
-    state->enemy_body  = b2_nullBodyId;
+    state->world         = b2CreateWorld(&world_def);
+    state->player_body   = b2_nullBodyId;
+    state->enemy_body    = b2_nullBodyId;
 
     create_walls(state->world);
 
     // Explicitly create paddle bodies at startup
-    state->player_body = create_paddle_body(state->world, &state->player);
-    state->enemy_body  = create_paddle_body(state->world, &state->enemy);
+    state->player_body   = create_paddle_body(state->world, &state->player);
+    state->enemy_body    = create_paddle_body(state->world, &state->enemy);
 
     LOG_SIMULATION("Box2D initialized");
 }
 
 void simulation_reset(SimulationState *state) {
     if (!b2World_IsValid(state->world)) return;
-      simulation_reset_paddles(state);  
-//    destroy_paddle_bodies(state);
+    simulation_reset_paddles(state);  
     balls_clear(&state->balls);
 }
 
@@ -290,7 +307,11 @@ void simulation_shutdown(SimulationState *state) {
     state->world = b2_nullWorldId;
 }
 
-void simulation_update(SimulationState *state, const GameInput *input, float dt) {
+void simulation_update(
+    SimulationState *state,
+    const GameInput *input,
+    float dt) 
+{
     if (!b2World_IsValid(state->world)) return;
 
     if (!b2Body_IsValid(state->player_body))

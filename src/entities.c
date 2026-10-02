@@ -2,13 +2,15 @@
 #include <math.h>
 #include "log.h"
 
-void ball_pool_init(BallPool* pool) {
+void 
+ball_pool_init(BallPool* pool) {
     pool->count     = 0; 
     pool->free_head = 0; 
 
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
         pool->slots[i].next_free = (i + 1 < MAX_BALLS) ? (i + 1) : INVALID_INDEX;
-        // CORRECCIÓN: Prevenir el reseteo de la generación de IDs en re-inicios para evitar 
+        // CORRECCIÓN: 
+	// Prevenir el reseteo de la generación de IDs en re-inicios para evitar 
         // validaciones falsas en punteros guardados (ABA problem).
         if (pool->slots[i].generation == 0) {
             pool->slots[i].generation = 1;
@@ -33,7 +35,8 @@ void balls_clear(BallPool *balls) {
     ball_pool_init(balls);
 }
 
-EntityHandle ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction) {
+EntityHandle 
+ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction) {
     if (!b2World_IsValid(world)) return INVALID_HANDLE;
 
     if (pool->free_head == INVALID_INDEX || pool->count >= MAX_BALLS) {
@@ -209,7 +212,8 @@ void particles_spawn(ParticlePool *particles, float x, float y, float vx, float 
 }
 
 
-void particles_update(ParticlePool *particles, float dt) {
+void 
+particles_update(ParticlePool *particles, float dt) {
     // Amortiguación independiente de la tasa de refresco (base normalizada a 60 FPS)
     float damping = powf(0.98f, dt * 60.0f);
 

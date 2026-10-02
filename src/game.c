@@ -3,7 +3,8 @@
 #include "entities.h"
 #include "simulation.h"
 
-static void reset_paddles(SimulationState *state) {
+static 
+void reset_paddles(SimulationState *state) {
     state->player.x      = COURT_LEFT + 20.0f;
     state->player.y      = SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
     state->player.width  = PADDLE_WIDTH;
@@ -17,28 +18,29 @@ static void reset_paddles(SimulationState *state) {
     state->enemy.speed  = PLAYER_SPEED;
 }
 
-void game_init(SimulationState *state) {
+void 
+game_init(SimulationState *state) {
     memset(state, 0, sizeof(*state));
     state->mode = GAME_TITLE;
     
     reset_paddles(state);
 
     simulation_init(state);
-    
     ball_pool_init(&state->balls);
     particles_clear(&state->particles);
     powerups_clear(&state->powerups);
 
 }
 
-void game_start(SimulationState *state) {
-    state->mode = GAME_PLAYING;
+void 
+game_start(SimulationState *state) {
+    state->mode      = GAME_PLAYING;
     state->game_time = 0.0f;
-    state->winner = 0;
+    state->winner    = 0;
 
     // Explicitly reset scores for a fresh match
     state->player.score = 0;
-    state->enemy.score = 0;
+    state->enemy.score  = 0;
 
     reset_paddles(state);
     
@@ -49,7 +51,8 @@ void game_start(SimulationState *state) {
     powerups_clear(&state->powerups);
 
     state->powerup_timer = 0.0f;
-    simulation_reset(state); // Owns resetting simulation state (paddles & balls)[cite: 2]
+// Owns resetting simulation state (paddles & balls)
+    simulation_reset(state); 
 
     ball_create(
         &state->balls,
@@ -60,12 +63,16 @@ void game_start(SimulationState *state) {
     );
 }
 
-void game_update(SimulationState *state, GameInput *input, float dt) {
-    // Single state-machine transition handler
+void 
+game_update(
+    SimulationState *state,
+    GameInput *input,
+    float dt) 
+{
     if (state->mode == GAME_TITLE) {
         if (input->start) {
             game_start(state);
-            input->start = false; // Consumir input
+            input->start = false; 
         }
         return;
     }
@@ -73,7 +80,7 @@ void game_update(SimulationState *state, GameInput *input, float dt) {
     if (state->mode == GAME_PAUSED) {
         if (input->pause) {
             state->mode = GAME_PLAYING;
-            input->pause = false; // Consumir input para evitar la trampa de pausa
+            input->pause = false; 
         }
         return;
     }
@@ -81,7 +88,7 @@ void game_update(SimulationState *state, GameInput *input, float dt) {
     if (state->mode == GAME_OVER) {
         if (input->start) {
             game_start(state);
-            input->start = false; // Consumir input
+            input->start = false; 
         }
         return;
     }
@@ -90,7 +97,7 @@ void game_update(SimulationState *state, GameInput *input, float dt) {
     
     if (input->pause) {
         state->mode = GAME_PAUSED;
-        input->pause = false; // Consumir input
+        input->pause = false;
         return;
     }
   

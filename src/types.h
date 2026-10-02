@@ -18,11 +18,14 @@ typedef enum {
  GAME_PLAYING,
  GAME_PAUSED,
  GAME_OVER 
-} 
-GameMode;
+} GameMode;
 
 typedef struct {
-    float x, y, width, height, speed;
+    float x;
+    float y;
+    float width;
+    float height;
+    float speed;
     int score;
 } Paddle;
 
@@ -47,14 +50,13 @@ typedef struct {
 typedef struct {
     uint32_t count;
     uint32_t free_head;
-    Slot slots[MAX_BALLS];
+    Slot     slots[MAX_BALLS];
 
-    // Parallel dense arrays (SoA layout)
     b2BodyId body[MAX_BALLS];
-    float x[MAX_BALLS];        // <-- Make sure this line exists
-    float y[MAX_BALLS];        // <-- Make sure this line exists
-    float vx[MAX_BALLS];       // <-- Make sure this line exists
-    float vy[MAX_BALLS];       // <-- Make sure this line exists
+    float    x[MAX_BALLS];        
+    float    y[MAX_BALLS];       
+    float    vx[MAX_BALLS];     
+    float    vy[MAX_BALLS];    
     uint32_t dense_to_sparse[MAX_BALLS];
 } BallPool;
 
@@ -78,7 +80,6 @@ typedef struct {
   float max_lifetime[MAX_PARTICLES];
   float size[MAX_PARTICLES];
 
-  // control de ranuras libres en O(1)
   int free_head;
   int next_free[MAX_PARTICLES];
 } ParticlePool;
@@ -93,38 +94,38 @@ typedef struct {
 
 
 typedef struct {
-  int   enabled;
-  int   show_collisions;
-  int   show_velocity;
-  float frame_time;
-  float fps;
-  int   ball_count;
-  int   particle_count;
-  int   powerup_count;
+  int          enabled;
+  int          show_collisions;
+  int          show_velocity;
+  float        frame_time;
+  float        fps;
+  int          ball_count;
+  int          particle_count;
+  int          powerup_count;
 } DebugState;
 
 
 typedef struct {
-  bool active;
-  float x;
-  float y;
-  uint32_t generation;
+  bool         active;
+  float        x;
+  float        y;
+  uint32_t     generation;
 } RenderBall;
 
 typedef struct {
-  bool active;
-  float x;
-  float y;
-  float lifetime;
-  float max_lifetime;
-  float size;
+  bool           active;
+  float          x;
+  float          y;
+  float          lifetime;
+  float          max_lifetime;
+  float          size;
 } RenderParticle;
 
 typedef struct {
-  bool active;
-  float x;
-  float y;
-  PowerupType type;
+  bool           active;
+  float          x;
+  float          y;
+  PowerupType    type;
 } RenderPowerup;
 
 typedef struct {
@@ -144,7 +145,7 @@ typedef struct {
 
 
 typedef struct {
-    b2WorldId world;     // shared world state
+    b2WorldId world;     
     b2BodyId player_body;
     b2BodyId enemy_body;
 

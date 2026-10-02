@@ -24,7 +24,6 @@ int main(void) {
 
     game_init(&state);
 
-    // En main.c (dentro del inicio)
     log_init();
     log_enable(PONG_LOG_GAME);
     log_enable(PONG_LOG_SIMULATION);
@@ -49,10 +48,7 @@ int main(void) {
         if (frame_time > MAX_FRAME_TIME)
             frame_time = MAX_FRAME_TIME;
 
-      // En el bucle principal de main.c:
-      debug_update(&debug, &state, (float)frame_time);
-
-
+        debug_update(&debug, &state, (float)frame_time);
 
         GameMode prev_mode = state.mode;
 
@@ -86,7 +82,7 @@ int main(void) {
                 );
 
                 accumulator -= SIM_DT;
-            }
+            } // while 
 
             // Capture state change triggered during simulation (e.g. GAME_OVER)
             if (state.mode != GAME_PLAYING) {

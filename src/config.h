@@ -4,9 +4,6 @@
 #define SCREEN_WIDTH       800
 #define SCREEN_HEIGHT      800//450
 
-
-
-// simulation runs independently of rendering
 #define SIM_HZ             120
 #define SIM_DT             (1.0f / (float)SIM_HZ)
 
@@ -33,9 +30,8 @@
 #define MAX_POWERUPS       16 
 #define POWERUP_SIZE       18.0f 
 #define POWERUP_INTERVAL   5.0f 
-#define WINNING_SCORE      2
+#define WINNING_SCORE      10
 
-// Particle Configuration Constants
 #define PARTICLE_COUNT_ON_SCORE 20
 #define PARTICLE_MIN_SPEED      50
 #define PARTICLE_MAX_SPEED      180

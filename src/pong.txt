@@ -218,33 +218,52 @@ entities.h
 #include "box2d/box2d.h"
 
 
-// Physics unit scaling helpers (30 pixels = 1 meter)
 #define METERS_PER_PIXEL    (1.0f / 30.0f)
 #define PIXELS_PER_METER    30.0f
 
 #define PX_TO_M(px) ((px) * METERS_PER_PIXEL)
 #define M_TO_PX(m)  ((m) * PIXELS_PER_METER)
 
-static b2Vec2 pixel_to_meter(float x, float y) {
-    return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
+static 
+b2Vec2 pixel_to_meter(float x, float y) {
+  return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
 }
 
 // Ball System
-void         ball_pool_init(BallPool* pool);
-void         balls_clear(BallPool *balls);
-EntityHandle ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction);
-bool         ball_is_valid(const BallPool* pool, EntityHandle handle);
-void         ball_destroy(BallPool* pool, EntityHandle handle);
+void         
+ball_pool_init(BallPool* pool);
+
+void         
+balls_clear(BallPool *balls);
+
+EntityHandle 
+ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction);
+
+bool         
+ball_is_valid(const BallPool* pool, EntityHandle handle);
+
+void         
+ball_destroy(BallPool* pool, EntityHandle handle);
 
 // Particle System
-void particles_clear(ParticlePool *particles);
-void particles_spawn(ParticlePool *particles, float x, float y, float vx, float vy, float lifetime, float size);
-void particles_update(ParticlePool *particles, float dt);
+void 
+particles_clear(ParticlePool *particles);
+
+void 
+particles_spawn(ParticlePool *particles, float x, float y, float vx, float vy, float lifetime, float size);
+
+void 
+particles_update(ParticlePool *particles, float dt);
 
 // Powerup System
-void powerups_clear(PowerupPool *powerups);
-int  powerup_create(PowerupPool *powerups, float x, float y, PowerupType type);
-void powerups_update(PowerupPool *powerups, float dt);
+void 
+powerups_clear(PowerupPool *powerups);
+
+int
+powerup_create(PowerupPool *powerups, float x, float y, PowerupType type);
+
+void
+powerups_update(PowerupPool *powerups, float dt);
 
 #endif // ENTITIES_H
 
@@ -257,13 +276,15 @@ entities.c
 #include <math.h>
 #include "log.h"
 
-void ball_pool_init(BallPool* pool) {
+void 
+ball_pool_init(BallPool* pool) {
     pool->count     = 0; 
     pool->free_head = 0; 
 
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
         pool->slots[i].next_free = (i + 1 < MAX_BALLS) ? (i + 1) : INVALID_INDEX;
-        // CORRECCIÓN: Prevenir el reseteo de la generación de IDs en re-inicios para evitar 
+        // CORRECCIÓN: 
+	// Prevenir el reseteo de la generación de IDs en re-inicios para evitar 
         // validaciones falsas en punteros guardados (ABA problem).
         if (pool->slots[i].generation == 0) {
             pool->slots[i].generation = 1;
@@ -464,7 +485,8 @@ void particles_spawn(ParticlePool *particles, float x, float y, float vx, float 
 }
 
 
-void particles_update(ParticlePool *particles, float dt) {
+void 
+particles_update(ParticlePool *particles, float dt) {
     // Amortiguación independiente de la tasa de refresco (base normalizada a 60 FPS)
     float damping = powf(0.98f, dt * 60.0f);
 
@@ -560,7 +582,8 @@ game.c
 #include "entities.h"
 #include "simulation.h"
 
-static void reset_paddles(SimulationState *state) {
+static 
+void reset_paddles(SimulationState *state) {
     state->player.x      = COURT_LEFT + 20.0f;
     state->player.y      = SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
     state->player.width  = PADDLE_WIDTH;
@@ -574,28 +597,29 @@ static void reset_paddles(SimulationState *state) {
     state->enemy.speed  = PLAYER_SPEED;
 }
 
-void game_init(SimulationState *state) {
+void 
+game_init(SimulationState *state) {
     memset(state, 0, sizeof(*state));
     state->mode = GAME_TITLE;
     
     reset_paddles(state);
 
     simulation_init(state);
-    
     ball_pool_init(&state->balls);
     particles_clear(&state->particles);
     powerups_clear(&state->powerups);
 
 }
 
-void game_start(SimulationState *state) {
-    state->mode = GAME_PLAYING;
+void 
+game_start(SimulationState *state) {
+    state->mode      = GAME_PLAYING;
     state->game_time = 0.0f;
-    state->winner = 0;
+    state->winner    = 0;
 
     // Explicitly reset scores for a fresh match
     state->player.score = 0;
-    state->enemy.score = 0;
+    state->enemy.score  = 0;
 
     reset_paddles(state);
     
@@ -606,7 +630,8 @@ void game_start(SimulationState *state) {
     powerups_clear(&state->powerups);
 
     state->powerup_timer = 0.0f;
-    simulation_reset(state); // Owns resetting simulation state (paddles & balls)[cite: 2]
+// Owns resetting simulation state (paddles & balls)
+    simulation_reset(state); 
 
     ball_create(
         &state->balls,
@@ -617,12 +642,16 @@ void game_start(SimulationState *state) {
     );
 }
 
-void game_update(SimulationState *state, GameInput *input, float dt) {
-    // Single state-machine transition handler
+void 
+game_update(
+    SimulationState *state,
+    GameInput *input,
+    float dt) 
+{
     if (state->mode == GAME_TITLE) {
         if (input->start) {
             game_start(state);
-            input->start = false; // Consumir input
+            input->start = false; 
         }
         return;
     }
@@ -630,7 +659,7 @@ void game_update(SimulationState *state, GameInput *input, float dt) {
     if (state->mode == GAME_PAUSED) {
         if (input->pause) {
             state->mode = GAME_PLAYING;
-            input->pause = false; // Consumir input para evitar la trampa de pausa
+            input->pause = false; 
         }
         return;
     }
@@ -638,7 +667,7 @@ void game_update(SimulationState *state, GameInput *input, float dt) {
     if (state->mode == GAME_OVER) {
         if (input->start) {
             game_start(state);
-            input->start = false; // Consumir input
+            input->start = false; 
         }
         return;
     }
@@ -647,7 +676,7 @@ void game_update(SimulationState *state, GameInput *input, float dt) {
     
     if (input->pause) {
         state->mode = GAME_PAUSED;
-        input->pause = false; // Consumir input
+        input->pause = false;
         return;
     }
   
@@ -846,11 +875,13 @@ void log_init(void)
 
 void log_enable(LogCategory category)
 {
+  if(category >= LOG_COUNT || category >= 32) return;
   enabled_categories |= (1u << category);
 }
 
 void log_disable(LogCategory category)
 {
+  if(category >= LOG_COUNT || category >= 32) return;
   enabled_categories &= ~(1u << category);
 }
 
@@ -928,7 +959,6 @@ int main(void) {
 
     game_init(&state);
 
-    // En main.c (dentro del inicio)
     log_init();
     log_enable(PONG_LOG_GAME);
     log_enable(PONG_LOG_SIMULATION);
@@ -953,10 +983,7 @@ int main(void) {
         if (frame_time > MAX_FRAME_TIME)
             frame_time = MAX_FRAME_TIME;
 
-      // En el bucle principal de main.c:
-      debug_update(&debug, &state, (float)frame_time);
-
-
+        debug_update(&debug, &state, (float)frame_time);
 
         GameMode prev_mode = state.mode;
 
@@ -990,7 +1017,7 @@ int main(void) {
                 );
 
                 accumulator -= SIM_DT;
-            }
+            } // while 
 
             // Capture state change triggered during simulation (e.g. GAME_OVER)
             if (state.mode != GAME_PLAYING) {
@@ -1462,15 +1489,27 @@ static b2BodyId create_paddle_body(b2WorldId world, const Paddle *paddle) {
 }
 
 
+static 
+void create_walls(b2WorldId world) 
+{
+  create_static_box(
+    world, 
+    COURT_LEFT,
+    COURT_TOP - 10.0f,
+    COURT_RIGHT - COURT_LEFT, 
+    10.0f);
 
-
-
-static void create_walls(b2WorldId world) {
-    create_static_box(world, COURT_LEFT, COURT_TOP - 10.0f, COURT_RIGHT - COURT_LEFT, 10.0f);
-    create_static_box(world, COURT_LEFT, COURT_BOTTOM, COURT_RIGHT - COURT_LEFT, 10.0f);
+  create_static_box(
+    world,
+    COURT_LEFT,
+    COURT_BOTTOM,
+    COURT_RIGHT - COURT_LEFT,
+    10.0f);
 }
 
-static void sync_physics_to_state(SimulationState *state) {
+static 
+void sync_physics_to_state(SimulationState *state) 
+{
     if (b2Body_IsValid(state->player_body)) {
         b2Vec2 pos = b2Body_GetPosition(state->player_body);
         state->player.y = M_TO_PX(pos.y) - state->player.height * 0.5f;
@@ -1496,14 +1535,20 @@ static void sync_physics_to_state(SimulationState *state) {
 }
 
 
-static void player_system(SimulationState *state, const GameInput *input, float dt) {
+static void player_system(
+    SimulationState *state,
+    const GameInput *input,
+    float dt) 
+{
+
     if (!b2Body_IsValid(state->player_body)) return;
 
     float velocity = 0.0f;
     if (input->up)   velocity -= state->player.speed;
     if (input->down) velocity += state->player.speed;
 
-    // Predictive velocity clamping: cap velocity so paddle lands exactly on the bound after dt
+    // Predictive velocity clamping: 
+    // cap velocity so paddle lands exactly on the bound after dt
     if (dt > 0.0f) {
         float next_y = state->player.y + velocity * dt;
         if (next_y < COURT_TOP) {
@@ -1624,25 +1669,24 @@ static void scoring_system(SimulationState *state) {
 
 void simulation_init(SimulationState *state) {
     b2WorldDef world_def = b2DefaultWorldDef();
-    world_def.gravity = (b2Vec2){0.0f, 0.0f};
+    world_def.gravity    = (b2Vec2){0.0f, 0.0f};
 
-    state->world = b2CreateWorld(&world_def);
-    state->player_body = b2_nullBodyId;
-    state->enemy_body  = b2_nullBodyId;
+    state->world         = b2CreateWorld(&world_def);
+    state->player_body   = b2_nullBodyId;
+    state->enemy_body    = b2_nullBodyId;
 
     create_walls(state->world);
 
     // Explicitly create paddle bodies at startup
-    state->player_body = create_paddle_body(state->world, &state->player);
-    state->enemy_body  = create_paddle_body(state->world, &state->enemy);
+    state->player_body   = create_paddle_body(state->world, &state->player);
+    state->enemy_body    = create_paddle_body(state->world, &state->enemy);
 
     LOG_SIMULATION("Box2D initialized");
 }
 
 void simulation_reset(SimulationState *state) {
     if (!b2World_IsValid(state->world)) return;
-      simulation_reset_paddles(state);  
-//    destroy_paddle_bodies(state);
+    simulation_reset_paddles(state);  
     balls_clear(&state->balls);
 }
 
@@ -1659,7 +1703,11 @@ void simulation_shutdown(SimulationState *state) {
     state->world = b2_nullWorldId;
 }
 
-void simulation_update(SimulationState *state, const GameInput *input, float dt) {
+void simulation_update(
+    SimulationState *state,
+    const GameInput *input,
+    float dt) 
+{
     if (!b2World_IsValid(state->world)) return;
 
     if (!b2Body_IsValid(state->player_body))
