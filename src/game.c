@@ -3,7 +3,7 @@
 #include "entities.h"
 #include "simulation.h"
 
-static 
+static
 void reset_paddles(SimulationState *state) {
     state->player.x      = COURT_LEFT + 20.0f;
     state->player.y      = SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
@@ -18,7 +18,7 @@ void reset_paddles(SimulationState *state) {
     state->enemy.speed  = PLAYER_SPEED;
 }
 
-void 
+void
 game_init(SimulationState *state) {
     memset(state, 0, sizeof(*state));
     state->mode = GAME_TITLE;
@@ -29,10 +29,9 @@ game_init(SimulationState *state) {
     ball_pool_init(&state->balls);
     particles_clear(&state->particles);
     powerups_clear(&state->powerups);
-
 }
 
-void 
+void
 game_start(SimulationState *state) {
     state->mode      = GAME_PLAYING;
     state->game_time = 0.0f;
@@ -43,16 +42,14 @@ game_start(SimulationState *state) {
     state->enemy.score  = 0;
 
     reset_paddles(state);
-    
-    // REMOVED redundant balls_clear(&state->balls); 
-    // simulation_reset(state) below will handle clearing balls and paddle bodies safely.
 
     particles_clear(&state->particles);
     powerups_clear(&state->powerups);
 
     state->powerup_timer = 0.0f;
-// Owns resetting simulation state (paddles & balls)
-    simulation_reset(state); 
+
+    // simulation_reset repositions paddle bodies and clears the balls
+    simulation_reset(state);
 
     ball_create(
         &state->balls,
@@ -63,50 +60,55 @@ game_start(SimulationState *state) {
     );
 }
 
-void 
-game_update(
-    SimulationState *state,
-    GameInput *input,
-    float dt) 
-{
-    if (state->mode == GAME_TITLE) {
-        if (input->start) {
-            game_start(state);
-            input->start = false; 
-        }
-        return;
-    }
-    
-    if (state->mode == GAME_PAUSED) {
-        if (input->pause) {
-            state->mode = GAME_PLAYING;
-            input->pause = false; 
-        }
-        return;
-    }
+/* ============================================================
+ * STATE MACHINE (once per frame)
+ * ============================================================
+ */
 
-    if (state->mode == GAME_OVER) {
-        if (input->start) {
-            game_start(state);
-            input->start = false; 
-        }
-        return;
+void
+game_handle_input(SimulationState *state, const GameInput *input)
+{
+    switch (state->mode) {
+        case GAME_TITLE:
+        case GAME_OVER:
+            if (input->start)
+                game_start(state);
+            break;
+
+        case GAME_PLAYING:
+            if (input->pause)
+                state->mode = GAME_PAUSED;
+            break;
+
+        case GAME_PAUSED:
+            if (input->pause)
+                state->mode = GAME_PLAYING;
+            break;
     }
-  
-    if (state->mode != GAME_PLAYING) return;
-    
-    if (input->pause) {
-        state->mode = GAME_PAUSED;
-        input->pause = false;
+}
+
+/* ============================================================
+ * FIXED STEP (zero or more times per frame)
+ * ============================================================
+ */
+
+void
+game_step(SimulationState *state, const GameInput *input, float dt)
+{
+    if (state->mode != GAME_PLAYING)
         return;
-    }
-  
+
     state->game_time += dt;
-    // simulation_update usará un input donde la pausa ya fue procesada y limpiada
     simulation_update(state, input, dt);
 }
 
-void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* snapshot) {
+/* ============================================================
+ * RENDER SNAPSHOT
+ * ============================================================
+ */
+
+void
+game_make_render_snapshot(const SimulationState *state, RenderSnapshot *snapshot) {
     snapshot->player_x     = state->player.x;
     snapshot->player_y     = state->player.y;
     snapshot->player_score = state->player.score;
@@ -119,22 +121,23 @@ void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* sna
     snapshot->winner       = state->winner;
     snapshot->ball_count   = (int)state->balls.count;
   
-    // 1. Desactivar inicialmente todos los slots de pelotas en el snapshot
+    // 1. Deactivate every ball slot in the snapshot
     for (int i = 0; i < MAX_BALLS; ++i) {
         snapshot->balls[i].active = false;
     }
 
-// 2. Mapear cada pelota activa a su slot disperso estable (dense_to_sparse)
+    // 2. Map each live ball to its stable sparse slot (dense_to_sparse)
     for (uint32_t d = 0; d < state->balls.count; ++d) {
         uint32_t slot_idx = state->balls.dense_to_sparse[d];
         if (slot_idx < MAX_BALLS) {
             snapshot->balls[slot_idx].active     = true;
             snapshot->balls[slot_idx].x          = state->balls.x[d];
             snapshot->balls[slot_idx].y          = state->balls.y[d];
-            snapshot->balls[slot_idx].generation = state->balls.slots[slot_idx].generation; // Save gen
+            snapshot->balls[slot_idx].vx         = state->balls.vx[d];
+            snapshot->balls[slot_idx].vy         = state->balls.vy[d];
+            snapshot->balls[slot_idx].generation = state->balls.slots[slot_idx].generation;
         }
     }
-
 
     for (int i = 0; i < MAX_PARTICLES; ++i) {
         snapshot->particles[i].active       = state->particles.active[i];
@@ -152,4 +155,6 @@ void game_make_render_snapshot(const SimulationState* state, RenderSnapshot* sna
         snapshot->powerups[i].type   = state->powerups.type[i];
     }
 }
+
+
 

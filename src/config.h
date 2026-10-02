@@ -7,7 +7,7 @@
 #define SIM_HZ             120
 #define SIM_DT             (1.0f / (float)SIM_HZ)
 
-#define MAX_FRAME_TIME     0.25
+#define MAX_FRAME_TIME     0.1
 #define COURT_LEFT         20.0f
 #define COURT_RIGHT        780.0f
 #define COURT_TOP          20.0f

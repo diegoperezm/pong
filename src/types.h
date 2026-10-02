@@ -104,11 +104,12 @@ typedef struct {
   int          powerup_count;
 } DebugState;
 
-
 typedef struct {
   bool         active;
   float        x;
   float        y;
+  float        vx;
+  float        vy;
   uint32_t     generation;
 } RenderBall;
 

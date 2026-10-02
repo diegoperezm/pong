@@ -10,6 +10,60 @@ lerp_float(
   return a + (b - a) * t;
 }
 
+// INTERPOLATED POSITIONS (shared with debug overlay)
+RenderVec2
+render_player_position(
+  const RenderSnapshot *previous,
+  const RenderSnapshot *current,
+  float alpha
+)
+{
+  return (RenderVec2){
+    lerp_float(previous->player_x, current->player_x, alpha),
+    lerp_float(previous->player_y, current->player_y, alpha)
+  };
+}
+
+RenderVec2
+render_enemy_position(
+  const RenderSnapshot *previous,
+  const RenderSnapshot *current,
+  float alpha
+)
+{
+  return (RenderVec2){
+    lerp_float(previous->enemy_x, current->enemy_x, alpha),
+    lerp_float(previous->enemy_y, current->enemy_y, alpha)
+  };
+}
+
+bool
+render_ball_position(
+  const RenderSnapshot *previous,
+  const RenderSnapshot *current,
+  int slot,
+  float alpha,
+  RenderVec2 *out
+)
+{
+  if (slot < 0 || slot >= MAX_BALLS || !current->balls[slot].active)
+    return false;
+
+  const RenderBall *cur  = &current->balls[slot];
+  const RenderBall *prev = &previous->balls[slot];
+
+  out->x = cur->x;
+  out->y = cur->y;
+
+  // Only interpolate if the slot was active previously AND belongs to the exact same generation
+  if (prev->active && prev->generation == cur->generation) {
+    out->x = lerp_float(prev->x, cur->x, alpha);
+    out->y = lerp_float(prev->y, cur->y, alpha);
+  }
+
+  return true;
+}
+
 // COURT
 static void
 draw_court(void)
@@ -41,48 +95,26 @@ draw_paddles(
   float alpha
 )
 {
-  float player_x = lerp_float(
-  previous->player_x,
-  current->player_x,
-  alpha
-  );
-
-  float player_y = lerp_float(
-    previous->player_y,
-    current->player_y,
-    alpha
-  );
-
-  float enemy_x = lerp_float(
-    previous->enemy_x,
-    current->enemy_x,
-    alpha
-  );
-
-  float enemy_y = lerp_float(
-    previous->enemy_y,
-    current->enemy_y,
-    alpha
-  );
+  RenderVec2 player = render_player_position(previous, current, alpha);
+  RenderVec2 enemy  = render_enemy_position(previous, current, alpha);
 
   DrawRectangle(
-    (int)player_x,
-    (int)player_y,
+    (int)player.x,
+    (int)player.y,
     (int)PADDLE_WIDTH,
     (int)PADDLE_HEIGHT,
     WHITE
   );
 
   DrawRectangle(
-    (int)enemy_x,
-    (int)enemy_y,
+    (int)enemy.x,
+    (int)enemy.y,
     (int)PADDLE_WIDTH,
     (int)PADDLE_HEIGHT,
     WHITE
   );
 }
 
-// BALLS
 // BALLS
 static void
 draw_balls(
@@ -92,30 +124,13 @@ draw_balls(
 )
 {
   for (int i = 0; i < MAX_BALLS; ++i) {
-    if (!current->balls[i].active)
+    RenderVec2 pos;
+    if (!render_ball_position(previous, current, i, alpha, &pos))
       continue;
 
-    float x = current->balls[i].x;
-    float y = current->balls[i].y;
-
-    // Only interpolate if the slot was active previously AND belongs to the exact same generation
-    if (previous->balls[i].active && previous->balls[i].generation == current->balls[i].generation) {
-      x = lerp_float(
-        previous->balls[i].x,
-        current->balls[i].x,
-        alpha
-      );
-
-      y = lerp_float(
-        previous->balls[i].y,
-        current->balls[i].y,
-        alpha
-      );
-    }
-
     DrawRectangle(
-      (int)x,
-      (int)y,
+      (int)pos.x,
+      (int)pos.y,
       (int)BALL_SIZE,
       (int)BALL_SIZE,
       WHITE
@@ -280,6 +295,4 @@ render_frame(
  }
   
 }
-
-
 

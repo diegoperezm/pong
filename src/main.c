@@ -7,6 +7,18 @@
 #include "simulation.h"
 #include "types.h"
 
+// Make both snapshots reflect the current state, so the next frame
+// renders it without interpolating from a stale previous state.
+static void
+snapshots_reset(
+    const SimulationState *state,
+    RenderSnapshot *previous,
+    RenderSnapshot *current)
+{
+    game_make_render_snapshot(state, current);
+    *previous = *current;
+}
+
 int main(void) {
     InitWindow(
         SCREEN_WIDTH,
@@ -35,87 +47,71 @@ int main(void) {
     debug.show_collisions = 1;
     debug.show_velocity = 1;
 
-
-    game_make_render_snapshot(&state, &previous);
-    game_make_render_snapshot(&state, &current);
+    snapshots_reset(&state, &previous, &current);
 
     double accumulator = 0.0;
 
     while (!WindowShouldClose()) {
         input_sample(&input);
 
-        double frame_time = GetFrameTime();
+        // Real duration of the last frame: debug readout only.
+        double raw_frame_time = GetFrameTime();
+
+        // Clamped copy: drives the simulation (spiral-of-death guard).
+        double frame_time = raw_frame_time;
         if (frame_time > MAX_FRAME_TIME)
             frame_time = MAX_FRAME_TIME;
 
-        debug_update(&debug, &state, (float)frame_time);
+        // 1. Once per frame: player-driven mode transitions.
+        GameMode mode_before = state.mode;
+        game_handle_input(&state, &input);
 
-        GameMode prev_mode = state.mode;
-
-        // Process state transitions directly through game_update
-        if (state.mode != GAME_PLAYING || input.pause) {
-            game_update(&state, &input, 0.0f);
-        }
-
-        // On any state transition, immediately synchronize render snapshots
-        if (state.mode != prev_mode) {
+        if (state.mode != mode_before) {
             accumulator = 0.0;
-            game_make_render_snapshot(&state, &current);
-            previous = current;
+            snapshots_reset(&state, &previous, &current);
         }
 
-        // Fixed-timestep simulation loop
+        // 2. Fixed-timestep simulation: held input (up/down) only.
         if (state.mode == GAME_PLAYING) {
             accumulator += frame_time;
 
             while (state.mode == GAME_PLAYING && accumulator >= SIM_DT) {
                 previous = current;
 
-                game_update(
-                    &state,
-                    &input,
-                    (float)SIM_DT
-                );
-                game_make_render_snapshot(
-                    &state,
-                    &current
-                );
+                game_step(&state, &input, (float)SIM_DT);
+                game_make_render_snapshot(&state, &current);
 
                 accumulator -= SIM_DT;
-            } // while 
+            }
 
-            // Capture state change triggered during simulation (e.g. GAME_OVER)
+            // The simulation itself ended the match (GAME_OVER).
             if (state.mode != GAME_PLAYING) {
                 accumulator = 0.0;
-                game_make_render_snapshot(&state, &current);
-                previous = current;
+                snapshots_reset(&state, &previous, &current);
             }
         }
 
         float alpha = (state.mode == GAME_PLAYING) ? (float)(accumulator / SIM_DT) : 1.0f;
 
-       // Render lifecycle
-       BeginDrawing();
-           ClearBackground(BLACK);
-   
-           // 1. Draw game world state
-           render_frame(
-               &previous,
-               &current,
-               alpha
-           );
-   
-           // 2. Overlay debug info safely inside the drawing context
-           if (debug.enabled) {
-               debug_draw(&debug, &state);
-           }
-   
-       EndDrawing();
-   
-   }
+        // After the simulation, so entity counts match what is drawn this frame.
+        debug_update(&debug, &state, (float)raw_frame_time);
+
+        BeginDrawing();
+            ClearBackground(BLACK);
+
+            // 1. Game world
+            render_frame(&previous, &current, alpha);
+
+            // 2. Debug overlay: same snapshots and alpha as the world above
+            debug_draw(&debug, &state, &previous, &current, alpha);
+
+        EndDrawing();
+    }
 
     simulation_shutdown(&state);
     CloseWindow();
 
     return 0;
 }
+
+

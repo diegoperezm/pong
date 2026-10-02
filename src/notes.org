@@ -1,1 +1,128 @@
 
+show me the complete code to fix:
+
+
+- ai_target is unnecessary state.
+You compute a handle, store it, then immediately resolve it back to a dense index through ball_is_valid and slots[].dense_idx. Just keep best_d as a local.
+
+
+- ball_create allocation order: you allocate the slot first and roll back on failure. Creating the Box2D body and shape first, then allocating the slot, removes both rollback paths.
+
+
+
+- INVALID_HANDLE as static const works, but it isn't a constant expression, so you can't use it in a static initializer. #define INVALID_HANDLE ((EntityHandle){INVALID_INDEX, 0}) is more flexible.
+
+
+
+
+
+- Simulation depends on raylib (simulation.c).
+It includes raylib.h only for GetRandomValue and PI. That makes the sim non-deterministic and hard to unit-test or replay, and it blocks running it headless. Put a small RNG (xorshift) in SimulationState, seeded in game_init, and define your own PONG_PI.
+
+
+- Duplicated code:
+
+The particle burst appears twice in scoring_system.
+create_static_box and create_paddle_body are near-identical.
+
+- Logging:
+
+Each log_message does several printf calls plus fflush. That is slow for high-frequency categories and not atomic. Format into a buffer and write once, ideally to stderr.
+Add __attribute__((format(printf, 4, 5))) so the compiler checks format strings.
+Compile the LOG_* macros out in release builds.
+
+The LOG_DEBUG(...) macro shadows raylib's LOG_DEBUG enumerator.
+It works today because the macro only expands when followed by (,
+but it is fragile.
+log.h has a dead #define LOG_CATEGORY_NAME immediately followed by #undef
+
+////////////
+IGNORE:////////////
+////////////
+
+3. Serve direction is based on the score lead, not who just scored (scoring_system).
+
+4. Log output during init is silently lost (main.c).
+game_init() runs before log_init() and log_enable(), so LOG_SIMULATION("Box2D initialized") never prints. Move the log setup above game_init.
+
+5. log_is_enabled has no bounds check (log.c).
+log_enable and log_disable guard against category >= 32, but log_is_enabled doesn't. An out-of-range category is undefined behavior on 1u << category and an out-of-bounds read on log_category_name[category]. Add the same check, plus _Static_assert(LOG_COUNT <= 32, ...).
+
+Gameplay and physics issues
+
+
+
+
+These aren't crashes, but I think they are the biggest problems in the current game.
+
+Deterministic serve. The ball always launches at +30° downward from the center. Every serve is identical, and no randomization or angle variation exists.
+No paddle-based deflection. Box2D's restitution reflects the ball flatly. Because friction is 0, a moving kinematic paddle imparts no vertical speed to the ball, so only corner hits change the angle. This is the biggest gameplay gap.
+The AI is effectively unbeatable. It tracks the ball center at PLAYER_SPEED with a 6px deadzone. The ball's max vertical speed is only about half of its launch speed. If PLAYER_SPEED exceeds that, the AI never misses, and together with flat reflection you get endless identical rallies. Give the AI a reaction delay, a lower speed cap, and/or periodic aim error.
+Speed isn't controlled. Nothing prevents energy drift from the solver, and nothing prevents a near-zero horizontal velocity, which gives you a ball bouncing wall-to-wall forever. Re-normalize each step and enforce a minimum |vx|:
+
+Paddle angle. Use Box2D's contact events (enableContactEvents plus b2World_GetContactEvents after the step), and when the ball hits a paddle, set its velocity from the normalized hit offset along the paddle. That gives you the classic Pong feel.
+Powerups are dead code. They are never spawned, never move, and never collide. powerup_timer is set but never read, and POWERUP_FAST_PADDLE is only used for a color. Also, a paddle-size powerup would need the Box2D shape rebuilt, because sync_physics_to_state never touches width.
+
+
+Three different pool strategies.
+Balls use generational handles, particles use an int free list, and powerups use a linear scan. That's fine for now, but pick one convention as soon as powerups become real.
+
+Duplicated code:
+
+The particle burst appears twice in scoring_system.
+create_static_box and create_paddle_body are near-identical.
+The predictive clamp is copy-pasted between player_system and enemy_system.
+
+Suggested helper for the last one:
+
+c
+static void drive_paddle(b2BodyId body, const Paddle *p, float vel, float dt) {
+    if (dt > 0.0f) {
+        float next  = p->y + vel * dt;
+        float max_y = COURT_BOTTOM - p->height;
+        if      (next < COURT_TOP) vel = (COURT_TOP - p->y) / dt;
+        else if (next > max_y)     vel = (max_y - p->y) / dt;
+    }
+    b2Body_SetLinearVelocity(body, (b2Vec2){0.0f, PX_TO_M(vel)});
+}
+
+Two "reset paddles" functions.
+reset_paddles in game.c resets the struct, while simulation_reset_paddles repositions the Box2D bodies. The names don't tell you which does which. Rename them, e.g. game_reset_paddle_state and sim_sync_paddle_bodies.
+
+Debug code is hard-wired on.
+main.c sets debug.enabled = 1 unconditionally, so the panel shows on the title screen too. Gate it behind a build flag and a toggle key such as F3. Also, debug_draw reads SimulationState directly, which bypasses the snapshot isolation you built. If rendering ever moves to its own thread, that will race.
+
+Logging:
+
+Each log_message does several printf calls plus fflush. That is slow for high-frequency categories and not atomic. Format into a buffer and write once, ideally to stderr.
+Add __attribute__((format(printf, 4, 5))) so the compiler checks format strings.
+Compile the LOG_* macros out in release builds.
+The LOG_DEBUG(...) macro shadows raylib's LOG_DEBUG enumerator. It works today because the macro only expands when followed by (, but it is fragile.
+log.h has a dead #define LOG_CATEGORY_NAME immediately followed by #undef.
+Smaller items
+input.c: there is a stray ; after the function body (};), which -Wpedantic flags.
+render.c:
+It casts to (int) everywhere, which truncates and biases interpolated positions. Use DrawRectangleRec with floats, or roundf.
+The center line and score positions use SCREEN_WIDTH / 2, but the court is defined by COURT_LEFT and COURT_RIGHT.
+The dashed center line can overshoot COURT_BOTTOM by up to 10px.
+There are many magic numbers (font sizes, y positions).
+There is a duplicate // BALLS comment.
+render_init and render_shutdown are empty and never called.
+third_party_impl.c: raygui is implemented but unused in every file shown. Delete it, or confirm it is used somewhere else.
+ball_create: the angle uses a literal 3.14159265359f and a hardcoded 30.0f, and direction is a float standing in for a sign. Use a named constant and an int or enum.
+ball_create allocation order: you allocate the slot first and roll back on failure. Creating the Box2D body and shape first, then allocating the slot, removes both rollback paths.
+particles_update: the damping line is correct and frame-rate independent. The 0.98, the powerup lifetime 8.0f and the AI deadzone 6.0f should move to config.h.
+game_init: calling it twice would leak the Box2D world, because memset wipes the handle. Fine today, but worth an assert or a shutdown call.
+game_start: it doesn't reset ai_target, and it ignores ball_create's return value. The count == 0 respawn in scoring_system covers for it.
+entities.c indentation: it mixes tabs and spaces (around lines 292–293), and indentation is inconsistent across files.
+Comments: // CORRECCIÓN:, // REMOVED redundant... and similar are changelog notes, not documentation. Delete them or turn them into "why" comments, and pick one language.
+Stack usage: SimulationState plus two RenderSnapshots live on main's stack. This is fine at current sizes, but check MAX_PARTICLES, because Windows' default stack is 1 MB.
+previous = current: it copies the whole snapshot (particles included) each sim step. Cheap enough today, but two snapshots with index swapping would avoid it.
+Suggested order of work
+Fix the quick correctness items: SetExitKey, the balls_clear generation bump, the log init order, the log_is_enabled bounds check, and static inline.
+Fix the serve rule by adding last_scorer.
+Add RNG in the sim, a randomized serve, speed normalization and paddle-offset deflection, and then make the AI imperfect.
+Split game_update into input handling and fixed step, and extract the duplicated helpers.
+Clean up the debug overlay, logging, dead code and style.
+
+If you send types.h and config.h, I can check the struct layouts and constants, such as whether PLAYER_SPEED really outruns the ball's vertical speed. I can also write any of these changes as patches.

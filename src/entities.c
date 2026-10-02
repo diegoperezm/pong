@@ -27,11 +27,13 @@ ball_pool_init(BallPool* pool) {
 }
 
 void balls_clear(BallPool *balls) {
-    for (uint32_t i = 0; i < balls->count; ++i) {
-        if (b2Body_IsValid(balls->body[i])) {
-            b2DestroyBody(balls->body[i]);
-        }
-    }
+    for (uint32_t i = 0; i < balls->count; ++i)
+        if (b2Body_IsValid(balls->body[i])) b2DestroyBody(balls->body[i]);
+
+    for (uint32_t i = 0; i < MAX_BALLS; ++i)       
+        if (balls->slots[i].active && ++balls->slots[i].generation == 0)
+            balls->slots[i].generation = 1;
+
     ball_pool_init(balls);
 }
 

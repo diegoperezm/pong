@@ -1,12 +1,18 @@
-#include "config.h"
 #include "debug.h"
+#include "config.h"
+#include "render.h"
 #include "raylib.h"
+
+#include <stdarg.h>
 #include <stdio.h>
 
-static void debug_draw_collisions(const SimulationState *state);
-static void debug_draw_velocity(const SimulationState *state);
+#define DEBUG_FPS_SMOOTHING   0.10f  /* EMA weight of the newest sample   */
+#define DEBUG_VELOCITY_SCALE  0.5f   /* seconds of travel the line shows  */
 
-
+/* ============================================================
+ * INIT / UPDATE
+ * ============================================================
+ */
 
 void debug_init(DebugState *debug) {
     debug->enabled         = 0;
@@ -20,7 +26,7 @@ void debug_init(DebugState *debug) {
 }
 
 static int debug_count_balls(const SimulationState *state) {
-    return (int)state->balls.count; 
+    return (int)state->balls.count;
 }
 
 static int debug_count_particles(const SimulationState *state) {
@@ -41,19 +47,48 @@ static int debug_count_powerups(const SimulationState *state) {
     return count;
 }
 
-void debug_update(DebugState *debug, const SimulationState *state, float frame_time) {
+void debug_update(DebugState *debug, const SimulationState *state, float raw_frame_time) {
     if (debug == NULL || state == NULL || !debug->enabled) return;
 
-    debug->frame_time = frame_time;
-    debug->fps = (frame_time > 0.0f) ? (1.0f / frame_time) : 0.0f;
+    /* Instantaneous, uncapped: spikes stay visible. */
+    debug->frame_time = raw_frame_time;
+
+    /* FPS is smoothed so the number is readable. */
+    if (raw_frame_time > 0.0f) {
+        float instant_fps = 1.0f / raw_frame_time;
+        debug->fps = (debug->fps <= 0.0f)
+            ? instant_fps
+            : debug->fps + (instant_fps - debug->fps) * DEBUG_FPS_SMOOTHING;
+    }
 
     debug->ball_count     = debug_count_balls(state);
     debug->particle_count = debug_count_particles(state);
     debug->powerup_count  = debug_count_powerups(state);
 }
 
-static void debug_text(int x, int y, const char *text) {
-    DrawText(text, x, y, DEBUG_FONT_SIZE, RAYWHITE);
+/* ============================================================
+ * TEXT PANEL
+ * ============================================================
+ */
+
+typedef struct {
+    int x;
+    int y;
+} DebugCursor;
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 2, 3)))
+#endif
+static void debug_line(DebugCursor *cursor, const char *fmt, ...) {
+    char text[128];
+
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+
+    DrawText(text, cursor->x, cursor->y, DEBUG_FONT_SIZE, RAYWHITE);
+    cursor->y += DEBUG_LINE_HEIGHT;
 }
 
 static const char *debug_game_mode_name(GameMode mode) {
@@ -66,116 +101,118 @@ static const char *debug_game_mode_name(GameMode mode) {
     }
 }
 
-void debug_draw(const DebugState *debug, const SimulationState *state) {
-    if (debug == NULL || state == NULL || !debug->enabled) return;
-
+static void debug_draw_panel(const DebugState *debug, const SimulationState *state) {
     DrawRectangle(DEBUG_PANEL_X, DEBUG_PANEL_Y, DEBUG_PANEL_WIDTH, DEBUG_PANEL_HEIGHT, Fade(BLACK, 0.80f));
     DrawRectangleLines(DEBUG_PANEL_X, DEBUG_PANEL_Y, DEBUG_PANEL_WIDTH, DEBUG_PANEL_HEIGHT, RAYWHITE);
 
-    int x = DEBUG_PANEL_X + DEBUG_PADDING;
-    int y = DEBUG_PANEL_Y + DEBUG_PADDING;
-    char text[128];
+    DebugCursor cursor = {
+        DEBUG_PANEL_X + DEBUG_PADDING,
+        DEBUG_PANEL_Y + DEBUG_PADDING
+    };
 
-    debug_text(x, y, "DEBUG");
-    y += DEBUG_LINE_HEIGHT + 4;
+    debug_line(&cursor, "DEBUG");
+    debug_line(&cursor, "FPS: %.1f", debug->fps);
+    debug_line(&cursor, "Frame: %.3f ms", debug->frame_time * 1000.0f);
+    debug_line(&cursor, "Mode: %s", debug_game_mode_name(state->mode));
+    debug_line(&cursor, "Time: %.2f", state->game_time);
+    debug_line(&cursor, "Player: (%.1f, %.1f)  score %d",
+               state->player.x, state->player.y, state->player.score);
+    debug_line(&cursor, "Enemy:  (%.1f, %.1f)  score %d",
+               state->enemy.x, state->enemy.y, state->enemy.score);
+    debug_line(&cursor, "Balls: %d / %d", debug->ball_count, MAX_BALLS);
+    debug_line(&cursor, "Particles: %d / %d", debug->particle_count, MAX_PARTICLES);
+    debug_line(&cursor, "Powerups: %d / %d", debug->powerup_count, MAX_POWERUPS);
+}
 
-    snprintf(text, sizeof(text), "FPS: %.1f", debug->fps);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
+/* ============================================================
+ * WORLD OVERLAYS (snapshot-based, interpolated like the sprites)
+ * ============================================================
+ */
 
-    snprintf(text, sizeof(text), "Frame: %.3f ms", debug->frame_time * 1000.0f);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
+static bool debug_mode_has_world(GameMode mode) {
+    return mode == GAME_PLAYING || mode == GAME_PAUSED;
+}
 
-    debug_text(x, y, "GAME");
-    y += DEBUG_LINE_HEIGHT;
+/* Same (int) truncation render.c applies to the sprite, so outlines
+ * land on the exact pixels of what is drawn. */
+static void debug_ball_center(RenderVec2 pos, int *cx, int *cy) {
+    *cx = (int)pos.x + (int)(BALL_SIZE * 0.5f);
+    *cy = (int)pos.y + (int)(BALL_SIZE * 0.5f);
+}
 
-    snprintf(text, sizeof(text), "  Mode: %s", debug_game_mode_name(state->mode));
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
+static void debug_draw_collisions(
+    const RenderSnapshot *previous,
+    const RenderSnapshot *current,
+    float alpha)
+{
+    RenderVec2 player = render_player_position(previous, current, alpha);
+    RenderVec2 enemy  = render_enemy_position(previous, current, alpha);
 
-    snprintf(text, sizeof(text), "  Time: %.2f", state->game_time);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
+    DrawRectangleLines((int)player.x, (int)player.y,
+                       (int)PADDLE_WIDTH, (int)PADDLE_HEIGHT, RED);
+    DrawRectangleLines((int)enemy.x, (int)enemy.y,
+                       (int)PADDLE_WIDTH, (int)PADDLE_HEIGHT, RED);
 
-    debug_text(x, y, "PLAYER");
-    y += DEBUG_LINE_HEIGHT;
+    /* The physics shape is a circle, so draw a circle. */
+    for (int i = 0; i < MAX_BALLS; ++i) {
+        RenderVec2 pos;
+        if (!render_ball_position(previous, current, i, alpha, &pos))
+            continue;
 
-    snprintf(text, sizeof(text), "  X: %.1f", state->player.x);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
-
-    snprintf(text, sizeof(text), "  Y: %.1f", state->player.y);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
-
-    snprintf(text, sizeof(text), "  Score: %d", state->player.score);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
-
-    debug_text(x, y, "ENEMY");
-    y += DEBUG_LINE_HEIGHT;
-
-    snprintf(text, sizeof(text), "  X: %.1f", state->enemy.x);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
-
-    snprintf(text, sizeof(text), "  Y: %.1f", state->enemy.y);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
-
-    snprintf(text, sizeof(text), "  Score: %d", state->enemy.score);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
-
-    debug_text(x, y, "ENTITIES");
-    y += DEBUG_LINE_HEIGHT;
-
-    snprintf(text, sizeof(text), "  Balls: %d / %d", debug->ball_count, MAX_BALLS);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
-
-    snprintf(text, sizeof(text), "  Particles: %d / %d", debug->particle_count, MAX_PARTICLES);
-    debug_text(x, y, text);
-    y += DEBUG_LINE_HEIGHT;
-
-    snprintf(text, sizeof(text), "  Powerups: %d / %d", debug->powerup_count, MAX_POWERUPS);
-    debug_text(x, y, text);
-
-    // CORRECCIÓN: Respetar banderas de características del módulo de debug
-    if (debug->show_collisions) {
-        debug_draw_collisions(state); 
-    }
-    if (debug->show_velocity) {
-        debug_draw_velocity(state); 
+        int cx, cy;
+        debug_ball_center(pos, &cx, &cy);
+        DrawCircleLines(cx, cy, BALL_SIZE * 0.5f, GREEN);
     }
 }
 
-void debug_draw_collisions(const SimulationState *state) {
-    if (state == NULL) return;
+static void debug_draw_velocity(
+    const RenderSnapshot *previous,
+    const RenderSnapshot *current,
+    float alpha)
+{
+    for (int i = 0; i < MAX_BALLS; ++i) {
+        RenderVec2 pos;
+        if (!render_ball_position(previous, current, i, alpha, &pos))
+            continue;
 
-    DrawRectangleLines((int)state->player.x, (int)state->player.y, (int)state->player.width, (int)state->player.height, RED);
-    DrawRectangleLines((int)state->enemy.x, (int)state->enemy.y, (int)state->enemy.width, (int)state->enemy.height, RED);
+        int cx, cy;
+        debug_ball_center(pos, &cx, &cy);
 
-    for (uint32_t i = 0; i < state->balls.count; ++i) {
-        int bx = (int)state->balls.x[i];
-        int by = (int)state->balls.y[i];
-        DrawRectangleLines(bx, by, (int)BALL_SIZE, (int)BALL_SIZE, GREEN);
+        /* Velocity is piecewise-constant between steps: use the latest. */
+        const RenderBall *ball = &current->balls[i];
+        int ex = cx + (int)(ball->vx * DEBUG_VELOCITY_SCALE);
+        int ey = cy + (int)(ball->vy * DEBUG_VELOCITY_SCALE);
+
+        DrawLine(cx, cy, ex, ey, YELLOW);
     }
 }
 
-void debug_draw_velocity(const SimulationState *state) {
-    if (state == NULL) return;
+/* ============================================================
+ * ENTRY POINT
+ * ============================================================
+ */
 
-    for (uint32_t i = 0; i < state->balls.count; ++i) {
-        float center_x = state->balls.x[i] + BALL_SIZE * 0.5f;
-        float center_y = state->balls.y[i] + BALL_SIZE * 0.5f;
-        float end_x    = center_x + state->balls.vx[i] * 0.5f;
-        float end_y    = center_y + state->balls.vy[i] * 0.5f;
+void debug_draw(
+    const DebugState *debug,
+    const SimulationState *state,
+    const RenderSnapshot *previous,
+    const RenderSnapshot *current,
+    float alpha)
+{
+    if (debug == NULL || state == NULL || previous == NULL || current == NULL)
+        return;
+    if (!debug->enabled)
+        return;
 
-        DrawLine((int)center_x, (int)center_y, (int)end_x, (int)end_y, YELLOW);
+    /* Overlays only where render_frame() actually draws entities. */
+    if (debug_mode_has_world(current->mode)) {
+        if (debug->show_collisions)
+            debug_draw_collisions(previous, current, alpha);
+        if (debug->show_velocity)
+            debug_draw_velocity(previous, current, alpha);
     }
-}
 
+    debug_draw_panel(debug, state);
+}
 
 

@@ -12,7 +12,7 @@
 #define PX_TO_M(px) ((px) * METERS_PER_PIXEL)
 #define M_TO_PX(m)  ((m) * PIXELS_PER_METER)
 
-static 
+static inline 
 b2Vec2 pixel_to_meter(float x, float y) {
   return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
 }
