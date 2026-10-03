@@ -9,9 +9,7 @@ ball_pool_init(BallPool* pool) {
 
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
         pool->slots[i].next_free = (i + 1 < MAX_BALLS) ? (i + 1) : INVALID_INDEX;
-        // CORRECCIÓN: 
-	// Prevenir el reseteo de la generación de IDs en re-inicios para evitar 
-        // validaciones falsas en punteros guardados (ABA problem).
+
         if (pool->slots[i].generation == 0) {
             pool->slots[i].generation = 1;
         }
