@@ -5,7 +5,6 @@
 #include "debug.h"
 #include "render.h"
 #include "simulation.h"
-#include "types.h"
 
 // Make both snapshots reflect the current state, so the next frame
 // renders it without interpolating from a stale previous state.
@@ -93,8 +92,8 @@ int main(void) {
 
         float alpha = (state.mode == GAME_PLAYING) ? (float)(accumulator / SIM_DT) : 1.0f;
 
-        // After the simulation, so entity counts match what is drawn this frame.
-        debug_update(&debug, &state, (float)raw_frame_time);
+        // Debug works from the same snapshot that is about to be drawn.
+        debug_update(&debug, &current, (float)raw_frame_time);
 
         BeginDrawing();
             ClearBackground(BLACK);
@@ -103,7 +102,7 @@ int main(void) {
             render_frame(&previous, &current, alpha);
 
             // 2. Debug overlay: same snapshots and alpha as the world above
-            debug_draw(&debug, &state, &previous, &current, alpha);
+            debug_draw(&debug, &previous, &current, alpha);
 
         EndDrawing();
     }
@@ -113,5 +112,3 @@ int main(void) {
 
     return 0;
 }
-
-

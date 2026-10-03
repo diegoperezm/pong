@@ -1,6 +1,6 @@
 #ifndef ENTITIES_H
 #define ENTITIES_H
-#include "types.h"
+#include "sim_types.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "box2d/box2d.h"
@@ -12,7 +12,7 @@
 #define PX_TO_M(px) ((px) * METERS_PER_PIXEL)
 #define M_TO_PX(m)  ((m) * PIXELS_PER_METER)
 
-static inline 
+static 
 b2Vec2 pixel_to_meter(float x, float y) {
   return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
 }
@@ -54,5 +54,3 @@ void
 powerups_update(PowerupPool *powerups, float dt);
 
 #endif // ENTITIES_H
-
-

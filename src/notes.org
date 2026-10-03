@@ -1,4 +1,14 @@
 
+difference between: 
+ - observer/callbacks vs pub/sub with subscriptions
+
+
+
+
+debug history, deterministic replays, automated tests
+
+
+
 show me the complete code to fix:
 
 
@@ -7,10 +17,6 @@ You compute a handle, store it, then immediately resolve it back to a dense inde
 
 
 - ball_create allocation order: you allocate the slot first and roll back on failure. Creating the Box2D body and shape first, then allocating the slot, removes both rollback paths.
-
-
-
-- INVALID_HANDLE as static const works, but it isn't a constant expression, so you can't use it in a static initializer. #define INVALID_HANDLE ((EntityHandle){INVALID_INDEX, 0}) is more flexible.
 
 
 

@@ -1,7 +1,7 @@
 #ifndef RENDER_H
 #define RENDER_H
 
-#include "types.h"
+#include "render_types.h"
 
 typedef struct {
     float x;
@@ -53,5 +53,3 @@ RenderVec2 *out
 );
 
 #endif
-
-

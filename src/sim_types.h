@@ -1,24 +1,14 @@
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef SIM_TYPES_H
+#define SIM_TYPES_H
 
-#include "config.h"
+/* Simulation-side types. This is the ONLY types header that pulls in
+ * Box2D. Include it from game, simulation and entities code only. */
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <box2d/box2d.h>
-
-typedef struct {
-    bool up;
-    bool down;
-    bool start;  
-    bool pause;
-} GameInput;
-
-typedef enum { 
- GAME_TITLE,
- GAME_PLAYING,
- GAME_PAUSED,
- GAME_OVER 
-} GameMode;
+#include "config.h"
+#include "game_types.h"
 
 typedef struct {
     float x;
@@ -64,12 +54,6 @@ typedef struct {
 // ============================================================
 // PARTICLES & POWERUPS
 // ============================================================
-typedef enum { 
-  POWERUP_SPEED,
-  POWERUP_MULTI_BALL, 
-  POWERUP_FAST_PADDLE
-} PowerupType;
-
 typedef struct {
   int   active[MAX_PARTICLES];
   float x[MAX_PARTICLES];
@@ -94,58 +78,6 @@ typedef struct {
 
 
 typedef struct {
-  int          enabled;
-  int          show_collisions;
-  int          show_velocity;
-  float        frame_time;
-  float        fps;
-  int          ball_count;
-  int          particle_count;
-  int          powerup_count;
-} DebugState;
-
-typedef struct {
-  bool         active;
-  float        x;
-  float        y;
-  float        vx;
-  float        vy;
-  uint32_t     generation;
-} RenderBall;
-
-typedef struct {
-  bool           active;
-  float          x;
-  float          y;
-  float          lifetime;
-  float          max_lifetime;
-  float          size;
-} RenderParticle;
-
-typedef struct {
-  bool           active;
-  float          x;
-  float          y;
-  PowerupType    type;
-} RenderPowerup;
-
-typedef struct {
-  float          player_x;
-  float          player_y;
-  float          enemy_x;
-  float          enemy_y;
-  RenderBall     balls[MAX_BALLS];
-  int            ball_count;
-  RenderParticle particles[MAX_PARTICLES];
-  RenderPowerup  powerups[MAX_POWERUPS];
-  int            player_score;
-  int            enemy_score;
-  GameMode       mode;
-  int            winner;
-} RenderSnapshot;
-
-
-typedef struct {
     b2WorldId world;     
     b2BodyId player_body;
     b2BodyId enemy_body;
@@ -163,13 +95,6 @@ typedef struct {
     float powerup_timer;
     
     EntityHandle ai_target;
-
-   
 } SimulationState;
 
-
-
 #endif
-
-
-

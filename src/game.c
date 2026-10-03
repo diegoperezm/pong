@@ -119,6 +119,7 @@ game_make_render_snapshot(const SimulationState *state, RenderSnapshot *snapshot
   
     snapshot->mode         = state->mode;
     snapshot->winner       = state->winner;
+    snapshot->game_time    = state->game_time;
     snapshot->ball_count   = (int)state->balls.count;
   
     // 1. Deactivate every ball slot in the snapshot
@@ -155,6 +156,3 @@ game_make_render_snapshot(const SimulationState *state, RenderSnapshot *snapshot
         snapshot->powerups[i].type   = state->powerups.type[i];
     }
 }
-
-
-

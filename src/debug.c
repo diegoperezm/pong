@@ -25,30 +25,30 @@ void debug_init(DebugState *debug) {
     debug->powerup_count   = 0;
 }
 
-static int debug_count_balls(const SimulationState *state) {
-    return (int)state->balls.count;
+static int debug_count_balls(const RenderSnapshot *snapshot) {
+    return snapshot->ball_count;
 }
 
-static int debug_count_particles(const SimulationState *state) {
+static int debug_count_particles(const RenderSnapshot *snapshot) {
     int count = 0;
     for (int i = 0; i < MAX_PARTICLES; ++i) {
-        if (state->particles.active[i])
+        if (snapshot->particles[i].active)
             ++count;
     }
     return count;
 }
 
-static int debug_count_powerups(const SimulationState *state) {
+static int debug_count_powerups(const RenderSnapshot *snapshot) {
     int count = 0;
     for (int i = 0; i < MAX_POWERUPS; ++i) {
-        if (state->powerups.active[i])
+        if (snapshot->powerups[i].active)
             ++count;
     }
     return count;
 }
 
-void debug_update(DebugState *debug, const SimulationState *state, float raw_frame_time) {
-    if (debug == NULL || state == NULL || !debug->enabled) return;
+void debug_update(DebugState *debug, const RenderSnapshot *current, float raw_frame_time) {
+    if (debug == NULL || current == NULL || !debug->enabled) return;
 
     /* Instantaneous, uncapped: spikes stay visible. */
     debug->frame_time = raw_frame_time;
@@ -61,9 +61,9 @@ void debug_update(DebugState *debug, const SimulationState *state, float raw_fra
             : debug->fps + (instant_fps - debug->fps) * DEBUG_FPS_SMOOTHING;
     }
 
-    debug->ball_count     = debug_count_balls(state);
-    debug->particle_count = debug_count_particles(state);
-    debug->powerup_count  = debug_count_powerups(state);
+    debug->ball_count     = debug_count_balls(current);
+    debug->particle_count = debug_count_particles(current);
+    debug->powerup_count  = debug_count_powerups(current);
 }
 
 /* ============================================================
@@ -101,7 +101,7 @@ static const char *debug_game_mode_name(GameMode mode) {
     }
 }
 
-static void debug_draw_panel(const DebugState *debug, const SimulationState *state) {
+static void debug_draw_panel(const DebugState *debug, const RenderSnapshot *current) {
     DrawRectangle(DEBUG_PANEL_X, DEBUG_PANEL_Y, DEBUG_PANEL_WIDTH, DEBUG_PANEL_HEIGHT, Fade(BLACK, 0.80f));
     DrawRectangleLines(DEBUG_PANEL_X, DEBUG_PANEL_Y, DEBUG_PANEL_WIDTH, DEBUG_PANEL_HEIGHT, RAYWHITE);
 
@@ -113,12 +113,12 @@ static void debug_draw_panel(const DebugState *debug, const SimulationState *sta
     debug_line(&cursor, "DEBUG");
     debug_line(&cursor, "FPS: %.1f", debug->fps);
     debug_line(&cursor, "Frame: %.3f ms", debug->frame_time * 1000.0f);
-    debug_line(&cursor, "Mode: %s", debug_game_mode_name(state->mode));
-    debug_line(&cursor, "Time: %.2f", state->game_time);
+    debug_line(&cursor, "Mode: %s", debug_game_mode_name(current->mode));
+    debug_line(&cursor, "Time: %.2f", current->game_time);
     debug_line(&cursor, "Player: (%.1f, %.1f)  score %d",
-               state->player.x, state->player.y, state->player.score);
+               current->player_x, current->player_y, current->player_score);
     debug_line(&cursor, "Enemy:  (%.1f, %.1f)  score %d",
-               state->enemy.x, state->enemy.y, state->enemy.score);
+               current->enemy_x, current->enemy_y, current->enemy_score);
     debug_line(&cursor, "Balls: %d / %d", debug->ball_count, MAX_BALLS);
     debug_line(&cursor, "Particles: %d / %d", debug->particle_count, MAX_PARTICLES);
     debug_line(&cursor, "Powerups: %d / %d", debug->powerup_count, MAX_POWERUPS);
@@ -194,12 +194,11 @@ static void debug_draw_velocity(
 
 void debug_draw(
     const DebugState *debug,
-    const SimulationState *state,
     const RenderSnapshot *previous,
     const RenderSnapshot *current,
     float alpha)
 {
-    if (debug == NULL || state == NULL || previous == NULL || current == NULL)
+    if (debug == NULL || previous == NULL || current == NULL)
         return;
     if (!debug->enabled)
         return;
@@ -212,7 +211,5 @@ void debug_draw(
             debug_draw_velocity(previous, current, alpha);
     }
 
-    debug_draw_panel(debug, state);
+    debug_draw_panel(debug, current);
 }
-
-

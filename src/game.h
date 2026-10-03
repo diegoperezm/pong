@@ -1,7 +1,8 @@
 #ifndef GAME_H
 #define GAME_H
 
-#include "types.h"
+#include "sim_types.h"
+#include "render_types.h"
 
 void
 game_init(
@@ -49,4 +50,3 @@ game_make_render_snapshot(
 );
 
 #endif
-
