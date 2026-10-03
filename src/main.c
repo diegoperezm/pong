@@ -1,22 +1,14 @@
+#include <time.h>
+
 #include "raylib.h"
-#include "game.h"
+#include "app.h"
 #include "input.h"
 #include "log.h"
 #include "debug.h"
 #include "render.h"
-#include "simulation.h"
 
-// Make both snapshots reflect the current state, so the next frame
-// renders it without interpolating from a stale previous state.
-static void
-snapshots_reset(
-    const SimulationState *state,
-    RenderSnapshot *previous,
-    RenderSnapshot *current)
-{
-    game_make_render_snapshot(state, current);
-    *previous = *current;
-}
+/* main() is only the platform shell: window, input sampling, drawing.
+ * Everything about the game itself lives in the app layer. */
 
 int main(void) {
     InitWindow(
@@ -25,89 +17,58 @@ int main(void) {
         "Pong"
     );
 
+    /* ESC is the pause key; without this raylib would close the window. */
+    SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 
-    SimulationState state;
-    GameInput input;
-
-    RenderSnapshot previous = {0};
-    RenderSnapshot current  = {0};
-
-    game_init(&state);
-
+    /* Logging must be configured BEFORE anything that logs. */
     log_init();
     log_enable(PONG_LOG_GAME);
     log_enable(PONG_LOG_SIMULATION);
     log_enable(PONG_LOG_ENTITY);
-    
+
+    /* ~100 KB (two snapshots): keep it off the stack. Zero-initialised. */
+    static App app;
+    app_init(&app, (uint64_t)time(NULL));
+
     DebugState debug;
     debug_init(&debug);
     debug.enabled = 1;
     debug.show_collisions = 1;
     debug.show_velocity = 1;
 
-    snapshots_reset(&state, &previous, &current);
-
-    double accumulator = 0.0;
-
     while (!WindowShouldClose()) {
+        GameInput input;
         input_sample(&input);
 
-        // Real duration of the last frame: debug readout only.
+        /* Real duration of the last frame: debug readout only. */
         double raw_frame_time = GetFrameTime();
 
-        // Clamped copy: drives the simulation (spiral-of-death guard).
+        /* Clamped copy: drives the simulation (spiral-of-death guard). */
         double frame_time = raw_frame_time;
         if (frame_time > MAX_FRAME_TIME)
             frame_time = MAX_FRAME_TIME;
 
-        // 1. Once per frame: player-driven mode transitions.
-        GameMode mode_before = state.mode;
-        game_handle_input(&state, &input);
+        if (input.debug_toggle)
+            debug.enabled = !debug.enabled;
 
-        if (state.mode != mode_before) {
-            accumulator = 0.0;
-            snapshots_reset(&state, &previous, &current);
-        }
+        app_frame(&app, &input, frame_time);
 
-        // 2. Fixed-timestep simulation: held input (up/down) only.
-        if (state.mode == GAME_PLAYING) {
-            accumulator += frame_time;
+        AppView view = app_view(&app);
+        DebugHistory history = app_debug_history(&app);
 
-            while (state.mode == GAME_PLAYING && accumulator >= SIM_DT) {
-                previous = current;
-
-                game_step(&state, &input, (float)SIM_DT);
-                game_make_render_snapshot(&state, &current);
-
-                accumulator -= SIM_DT;
-            }
-
-            // The simulation itself ended the match (GAME_OVER).
-            if (state.mode != GAME_PLAYING) {
-                accumulator = 0.0;
-                snapshots_reset(&state, &previous, &current);
-            }
-        }
-
-        float alpha = (state.mode == GAME_PLAYING) ? (float)(accumulator / SIM_DT) : 1.0f;
-
-        // Debug works from the same snapshot that is about to be drawn.
-        debug_update(&debug, &current, (float)raw_frame_time);
+        debug_update(&debug, view.current, (float)raw_frame_time);
 
         BeginDrawing();
             ClearBackground(BLACK);
 
-            // 1. Game world
-            render_frame(&previous, &current, alpha);
-
-            // 2. Debug overlay: same snapshots and alpha as the world above
-            debug_draw(&debug, &previous, &current, alpha);
+            render_frame(view.previous, view.current, view.alpha);
+            debug_draw(&debug, view.previous, view.current, view.alpha, &history);
 
         EndDrawing();
     }
 
-    simulation_shutdown(&state);
+    app_shutdown(&app);
     CloseWindow();
 
     return 0;

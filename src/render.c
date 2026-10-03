@@ -41,24 +41,27 @@ bool
 render_ball_position(
   const RenderSnapshot *previous,
   const RenderSnapshot *current,
-  int slot,
+  int index,
   float alpha,
   RenderVec2 *out
 )
 {
-  if (slot < 0 || slot >= MAX_BALLS || !current->balls[slot].active)
+  if (index < 0 || index >= current->ball_count || index >= MAX_BALLS)
     return false;
 
-  const RenderBall *cur  = &current->balls[slot];
-  const RenderBall *prev = &previous->balls[slot];
+  const RenderBall *cur = &current->balls[index];
 
   out->x = cur->x;
   out->y = cur->y;
 
-  // Only interpolate if the slot was active previously AND belongs to the exact same generation
-  if (prev->active && prev->generation == cur->generation) {
-    out->x = lerp_float(prev->x, cur->x, alpha);
-    out->y = lerp_float(prev->y, cur->y, alpha);
+  // Match by serial: it is never reused, so a hit means "same ball".
+  int prev_count = previous->ball_count < MAX_BALLS ? previous->ball_count : MAX_BALLS;
+  for (int i = 0; i < prev_count; ++i) {
+    if (previous->balls[i].serial == cur->serial) {
+      out->x = lerp_float(previous->balls[i].x, cur->x, alpha);
+      out->y = lerp_float(previous->balls[i].y, cur->y, alpha);
+      break;
+    }
   }
 
   return true;
@@ -123,7 +126,7 @@ draw_balls(
   float alpha
 )
 {
-  for (int i = 0; i < MAX_BALLS; ++i) {
+  for (int i = 0; i < current->ball_count; ++i) {
     RenderVec2 pos;
     if (!render_ball_position(previous, current, i, alpha, &pos))
       continue;
@@ -215,15 +218,27 @@ draw_score(const RenderSnapshot *snapshot)
   DrawText(p2_score, (SCREEN_WIDTH / 2) + 100 - (p2_width / 2), 30, 40, WHITE);
 }
 
+// REPLAY BANNER
+static void
+draw_replay_banner(const RenderSnapshot *snapshot)
+{
+  if (!snapshot->replaying)
+    return;
+
+  DrawText(TextFormat("REPLAY  tick %u", snapshot->tick), (int)COURT_LEFT, 2, 16, YELLOW);
+}
+
 // SCREENS
 static void
 draw_title(void)
 {
   const char *title = "PONG";
   const char *prompt = "PRESS ENTER";
+  const char *replay = "F6: WATCH LAST MATCH";
 
   DrawText(title, (SCREEN_WIDTH / 2) - (MeasureText(title, 40) / 2), 120, 40, WHITE);
   DrawText(prompt, (SCREEN_WIDTH / 2) - (MeasureText(prompt, 20) / 2), 180, 20, WHITE);
+  DrawText(replay, (SCREEN_WIDTH / 2) - (MeasureText(replay, 16) / 2), 220, 16, WHITE);
 }
 
 static void
@@ -239,10 +254,12 @@ draw_game_over(const RenderSnapshot *snapshot)
   const char *text = snapshot->winner == 1 ? "YOU WIN" : "YOU LOSE";
   const char *score_text = TextFormat("%d - %d", snapshot->player_score, snapshot->enemy_score);
   const char *prompt = "PRESS ENTER";
+  const char *replay = "F6: WATCH REPLAY";
 
   DrawText(text, (SCREEN_WIDTH / 2) - (MeasureText(text, 30) / 2), 120, 30, WHITE);
   DrawText(score_text, (SCREEN_WIDTH / 2) - (MeasureText(score_text, 20) / 2), 170, 20, WHITE);
   DrawText(prompt, (SCREEN_WIDTH / 2) - (MeasureText(prompt, 20) / 2), 210, 20, WHITE);
+  DrawText(replay, (SCREEN_WIDTH / 2) - (MeasureText(replay, 16) / 2), 245, 16, WHITE);
 }
 
 // LIFECYCLE
@@ -277,6 +294,7 @@ render_frame(
       draw_balls(previous, current, alpha);
       draw_particles(current);
       draw_score(current);
+      draw_replay_banner(current);
       break;
     
     case GAME_PAUSED:
@@ -286,6 +304,7 @@ render_frame(
       draw_balls(previous, current, alpha);
       draw_particles(current);
       draw_score(current);
+      draw_replay_banner(current);
       draw_pause();
       break;
     
@@ -295,4 +314,3 @@ render_frame(
  }
   
 }
-
