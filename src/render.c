@@ -218,27 +218,15 @@ draw_score(const RenderSnapshot *snapshot)
   DrawText(p2_score, (SCREEN_WIDTH / 2) + 100 - (p2_width / 2), 30, 40, WHITE);
 }
 
-// REPLAY BANNER
-static void
-draw_replay_banner(const RenderSnapshot *snapshot)
-{
-  if (!snapshot->replaying)
-    return;
-
-  DrawText(TextFormat("REPLAY  tick %u", snapshot->tick), (int)COURT_LEFT, 2, 16, YELLOW);
-}
-
 // SCREENS
 static void
 draw_title(void)
 {
   const char *title = "PONG";
   const char *prompt = "PRESS ENTER";
-  const char *replay = "F6: WATCH LAST MATCH";
 
   DrawText(title, (SCREEN_WIDTH / 2) - (MeasureText(title, 40) / 2), 120, 40, WHITE);
   DrawText(prompt, (SCREEN_WIDTH / 2) - (MeasureText(prompt, 20) / 2), 180, 20, WHITE);
-  DrawText(replay, (SCREEN_WIDTH / 2) - (MeasureText(replay, 16) / 2), 220, 16, WHITE);
 }
 
 static void
@@ -254,12 +242,10 @@ draw_game_over(const RenderSnapshot *snapshot)
   const char *text = snapshot->winner == 1 ? "YOU WIN" : "YOU LOSE";
   const char *score_text = TextFormat("%d - %d", snapshot->player_score, snapshot->enemy_score);
   const char *prompt = "PRESS ENTER";
-  const char *replay = "F6: WATCH REPLAY";
 
   DrawText(text, (SCREEN_WIDTH / 2) - (MeasureText(text, 30) / 2), 120, 30, WHITE);
   DrawText(score_text, (SCREEN_WIDTH / 2) - (MeasureText(score_text, 20) / 2), 170, 20, WHITE);
   DrawText(prompt, (SCREEN_WIDTH / 2) - (MeasureText(prompt, 20) / 2), 210, 20, WHITE);
-  DrawText(replay, (SCREEN_WIDTH / 2) - (MeasureText(replay, 16) / 2), 245, 16, WHITE);
 }
 
 // LIFECYCLE
@@ -294,7 +280,6 @@ render_frame(
       draw_balls(previous, current, alpha);
       draw_particles(current);
       draw_score(current);
-      draw_replay_banner(current);
       break;
     
     case GAME_PAUSED:
@@ -304,7 +289,6 @@ render_frame(
       draw_balls(previous, current, alpha);
       draw_particles(current);
       draw_score(current);
-      draw_replay_banner(current);
       draw_pause();
       break;
     
@@ -314,3 +298,4 @@ render_frame(
  }
   
 }
+

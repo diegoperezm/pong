@@ -1,9 +1,320 @@
+app.h
+
+#ifndef APP_H
+#define APP_H
+
+/* The application layer: everything that is NOT the simulation.
+ *
+ * Owns the title / playing / paused / game-over state machine, both queues,
+ * the particles (fx), recording, replay playback and seeking, and the
+ * render-snapshot interpolation state. It is the only code that talks to
+ * the simulation, and it does so through three things: a seed, one
+ * TickInput per tick, and an event queue.
+ *
+ * It does not call raylib, so it can be driven headlessly (see tests/). */
+
+#include <stdint.h>
+#include "sim_types.h"
+#include "render_types.h"
+#include "events.h"
+#include "fx.h"
+#include "input_source.h"
+#include "debug.h"
+
+
+typedef struct {
+    const RenderSnapshot *previous;
+    const RenderSnapshot *current;
+    float                 alpha;
+} AppView;
+
+typedef struct {
+    GameMode        mode;
+    SimulationState sim;
+    EventQueue      events;
+    Fx              fx;
+    InputSource     source;
+    uint64_t        base_seed;
+    uint32_t        match_counter;
+    double          accumulator;
+    float           alpha;
+    RenderSnapshot  previous;
+    RenderSnapshot  current;
+    uint32_t        desync_tick;
+    uint64_t        last_checksum;
+    char            status[96];
+} App;
+
+void app_init(App *app, uint64_t base_seed);
+void app_shutdown(App *app);
+
+/* One call per rendered frame. `frame_time` is the CAPPED frame duration. */
+void app_frame(App *app, const GameInput *input, double frame_time);
+
+AppView      app_view(const App *app);
+DebugHistory app_debug_history(const App *app);
+
+#endif
+
+
+app.c
+
+#include "app.h"
+#include "rng.h"
+#include "simulation.h"
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+
+#define SEEK_STEP_TICKS ((uint32_t)SIM_HZ)   /* one second */
+
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 2, 3)))
+#endif
+static void set_status(App *app, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(app->status, sizeof app->status, fmt, args);
+    va_end(args);
+}
+
+/* ============================================================
+ * SNAPSHOTS
+ * ============================================================ */
+
+static void make_snapshot(const App *app, RenderSnapshot *snap) {
+    const SimulationState *s = &app->sim;
+
+    snap->player_x     = s->player.x;
+    snap->player_y     = s->player.y;
+    snap->player_score = s->player.score;
+    snap->enemy_x      = s->enemy.x;
+    snap->enemy_y      = s->enemy.y;
+    snap->enemy_score  = s->enemy.score;
+
+    snap->mode      = app->mode;
+    snap->winner    = s->winner;
+    snap->tick      = s->tick;
+    snap->game_time = (float)s->tick * SIM_DT;
+
+    int n = (int)s->balls.count;
+    if (n > MAX_BALLS) n = MAX_BALLS;
+    snap->ball_count = n;
+    for (int d = 0; d < n; ++d) {
+        snap->balls[d] = (RenderBall){
+            .x = s->balls.x[d], .y = s->balls.y[d],
+            .vx = s->balls.vx[d], .vy = s->balls.vy[d],
+            .serial = s->balls.serial[d]
+        };
+    }
+
+    const ParticlePool *p = &app->fx.particles;
+    for (int i = 0; i < MAX_PARTICLES; ++i) {
+        snap->particles[i].active       = p->active[i] != 0;
+        snap->particles[i].x            = p->x[i];
+        snap->particles[i].y            = p->y[i];
+        snap->particles[i].lifetime     = p->lifetime[i];
+        snap->particles[i].max_lifetime = p->max_lifetime[i];
+        snap->particles[i].size         = p->size[i];
+    }
+
+    for (int i = 0; i < MAX_POWERUPS; ++i) {
+        snap->powerups[i].active = s->powerups.active[i] != 0;
+        snap->powerups[i].x      = s->powerups.x[i];
+        snap->powerups[i].y      = s->powerups.y[i];
+        snap->powerups[i].type   = s->powerups.type[i];
+    }
+}
+
+/* Make both snapshots show the current state, so the next frame does not
+ * interpolate from a stale one. */
+static void snapshots_reset(App *app) {
+    make_snapshot(app, &app->current);
+    app->previous = app->current;
+}
+
+/* ============================================================
+ * MATCH START / FINISH
+ * ============================================================ */
+
+/* Order matters: clear the queue, point fx at it, THEN let the sim emit. */
+static void begin_match_common(App *app, uint64_t seed) {
+    event_queue_clear(&app->events);
+    fx_reset(&app->fx, seed, &app->events);
+    sim_begin_match(&app->sim, seed, &app->events);
+    fx_consume_events(&app->fx, &app->events);
+
+    app->accumulator   = 0.0;
+    app->desync_tick   = 0;
+}
+
+static void start_live_match(App *app) {
+    uint64_t seed = rng_splitmix64(app->base_seed + app->match_counter++);
+
+    input_source_use_live(&app->source);
+
+    begin_match_common(app, seed);
+
+    app->mode = GAME_PLAYING;
+    snapshots_reset(app);
+    set_status(app, "recording match (seed %016llx)", (unsigned long long)seed);
+}
+
+
+static void finish_match(App *app) {
+    app->mode        = GAME_OVER;
+    app->accumulator = 0.0;
+}
+
+/* ============================================================
+ * ONE TICK
+ * ============================================================ */
+
+
+
+/* The whole per-tick pipeline, identical for live play, replay and seek:
+ *   checkpoint -> input for this tick -> sim_step -> consumers -> snapshot */
+static void run_tick(App *app, bool snapshot) {
+    SimulationState *sim = &app->sim;
+    const uint32_t tick  = sim->tick;
+
+    TickInput in = input_source_at(&app->source, tick);
+
+    if (snapshot) app->previous = app->current;
+
+    sim_step(sim, &in, (float)SIM_DT, &app->events);
+
+    /* Consumers run after every tick, so effects stay tick-aligned. */
+    fx_consume_events(&app->fx, &app->events);
+    fx_update(&app->fx, (float)SIM_DT);
+
+    if (snapshot) make_snapshot(app, &app->current);
+
+    if (sim->match_over){
+      app->mode = GAME_OVER;
+      app->accumulator = 0.0;
+    }
+
+
+}
+
+
+
+/* ============================================================
+ * APP-LEVEL INPUT (menus, pause)
+ * ============================================================ */
+
+static void handle_input(App *app, const GameInput *in) {
+    switch (app->mode) {
+        case GAME_TITLE:
+        case GAME_OVER:
+            if (in->start)       start_live_match(app);
+            break;
+
+        case GAME_PLAYING:
+            if (in->pause) app->mode = GAME_PAUSED;
+            break;
+
+        case GAME_PAUSED:
+            if (in->pause) app->mode = GAME_PLAYING;
+            break;
+    }
+
+    if ((app->mode == GAME_PLAYING || app->mode == GAME_PAUSED)) {
+        uint32_t t = app->sim.tick;
+    }
+}
+
+/* ============================================================
+ * PUBLIC API
+ * ============================================================ */
+
+void app_init(App *app, uint64_t base_seed) {
+    memset(app, 0, sizeof *app);
+
+    app->mode      = GAME_TITLE;
+    app->base_seed = base_seed;
+    app->alpha     = 1.0f;
+
+    input_source_use_live(&app->source);
+
+
+    event_queue_clear(&app->events);
+    fx_reset(&app->fx, 0, &app->events);
+    snapshots_reset(app);
+}
+
+void app_shutdown(App *app) {
+    sim_shutdown(&app->sim);
+}
+
+void app_frame(App *app, const GameInput *input, double frame_time) {
+    GameMode before = app->mode;
+
+    handle_input(app, input);
+
+    if (app->mode != before) {
+        app->accumulator = 0.0;
+        snapshots_reset(app);
+    }
+
+    if (app->mode == GAME_PLAYING) {
+        /* Held input is sampled once per frame; every tick of this frame
+         * sees it. (Ignored when the source is a replay.) */
+        input_source_set_live_held(&app->source,
+                                   (TickInput){ input->up, input->down });
+
+        app->accumulator += frame_time;
+
+        while (app->mode == GAME_PLAYING && app->accumulator >= (double)SIM_DT) {
+            run_tick(app, true);
+            app->accumulator -= (double)SIM_DT;
+        }
+
+        if (app->mode != GAME_PLAYING) {
+            app->accumulator = 0.0;
+            snapshots_reset(app);
+            app->alpha = 1.0f;
+        } else {
+            app->alpha = (float)(app->accumulator / (double)SIM_DT);
+        }
+    } else {
+        app->alpha = 1.0f;
+
+        /* Frame-step: only while paused inside a replay. */
+        if (app->mode == GAME_PAUSED && input->step)
+            run_tick(app, true);
+    }
+}
+
+AppView app_view(const App *app) {
+    return (AppView){ &app->previous, &app->current, app->alpha };
+}
+
+DebugHistory app_debug_history(const App *app) {
+    DebugHistory h;
+    memset(&h, 0, sizeof h);
+
+    h.events             = &app->events;
+    h.tick               = app->sim.tick;
+    h.seed               = app->sim.seed;
+    h.desync_tick        = app->desync_tick;
+    h.events_lost        = app->fx.cursor.lost;
+    h.status             = app->status;
+    return h;
+}
+
+
 debug.h
 
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "render_types.h"
+#include "events.h"
 
 typedef struct {
   int          enabled;
@@ -16,24 +327,28 @@ typedef struct {
   int          powerup_count;
 } DebugState;
 
+/* Read-only view of the history the app keeps. Nothing here is simulation
+ * state: it is the event ring, the input log, and replay bookkeeping. */
+typedef struct {
+    const EventQueue *events;
+    uint32_t          tick;
+    uint64_t          seed;
+    uint32_t          desync_tick;
+    uint32_t          events_lost;
+    const char       *status;
+} DebugHistory;
+
 void debug_init(DebugState *debug);
 
-/* raw_frame_time must be the UNCAPPED duration of the last frame
- * (GetFrameTime()), not the value clamped for the simulation.
- * `current` is the snapshot that is being drawn this frame. */
-void debug_update(
-    DebugState *debug,
-    const RenderSnapshot *current,
-    float raw_frame_time
-);
+/* raw_frame_time must be the UNCAPPED duration of the last frame. */
+void debug_update(DebugState *debug, const RenderSnapshot *current, float raw_frame_time);
 
-/* previous/current/alpha must be the same values passed to render_frame()
- * so the overlay is interpolated exactly like the sprites. */
 void debug_draw(
     const DebugState *debug,
     const RenderSnapshot *previous,
     const RenderSnapshot *current,
-    float alpha
+    float alpha,
+    const DebugHistory *history
 );
 
 #endif
@@ -52,10 +367,14 @@ debug.c
 #define DEBUG_FPS_SMOOTHING   0.10f  /* EMA weight of the newest sample   */
 #define DEBUG_VELOCITY_SCALE  0.5f   /* seconds of travel the line shows  */
 
+#define HIST_FONT_SIZE        12
+#define HIST_LINE_HEIGHT      15
+#define HIST_EVENT_LINES      8
+#define HIST_INPUT_LINES      4
+
 /* ============================================================
  * INIT / UPDATE
- * ============================================================
- */
+ * ============================================================ */
 
 void debug_init(DebugState *debug) {
     debug->enabled         = 0;
@@ -66,10 +385,6 @@ void debug_init(DebugState *debug) {
     debug->ball_count      = 0;
     debug->particle_count  = 0;
     debug->powerup_count   = 0;
-}
-
-static int debug_count_balls(const RenderSnapshot *snapshot) {
-    return snapshot->ball_count;
 }
 
 static int debug_count_particles(const RenderSnapshot *snapshot) {
@@ -93,10 +408,8 @@ static int debug_count_powerups(const RenderSnapshot *snapshot) {
 void debug_update(DebugState *debug, const RenderSnapshot *current, float raw_frame_time) {
     if (debug == NULL || current == NULL || !debug->enabled) return;
 
-    /* Instantaneous, uncapped: spikes stay visible. */
     debug->frame_time = raw_frame_time;
 
-    /* FPS is smoothed so the number is readable. */
     if (raw_frame_time > 0.0f) {
         float instant_fps = 1.0f / raw_frame_time;
         debug->fps = (debug->fps <= 0.0f)
@@ -104,15 +417,14 @@ void debug_update(DebugState *debug, const RenderSnapshot *current, float raw_fr
             : debug->fps + (instant_fps - debug->fps) * DEBUG_FPS_SMOOTHING;
     }
 
-    debug->ball_count     = debug_count_balls(current);
+    debug->ball_count     = current->ball_count;
     debug->particle_count = debug_count_particles(current);
     debug->powerup_count  = debug_count_powerups(current);
 }
 
 /* ============================================================
- * TEXT PANEL
- * ============================================================
- */
+ * TEXT HELPERS
+ * ============================================================ */
 
 typedef struct {
     int x;
@@ -120,18 +432,19 @@ typedef struct {
 } DebugCursor;
 
 #if defined(__GNUC__) || defined(__clang__)
-__attribute__((format(printf, 2, 3)))
+__attribute__((format(printf, 5, 6)))
 #endif
-static void debug_line(DebugCursor *cursor, const char *fmt, ...) {
-    char text[128];
+static void text_line(DebugCursor *cursor, int font, int line_height, Color color,
+                      const char *fmt, ...) {
+    char text[160];
 
     va_list args;
     va_start(args, fmt);
     vsnprintf(text, sizeof(text), fmt, args);
     va_end(args);
 
-    DrawText(text, cursor->x, cursor->y, DEBUG_FONT_SIZE, RAYWHITE);
-    cursor->y += DEBUG_LINE_HEIGHT;
+    DrawText(text, cursor->x, cursor->y, font, color);
+    cursor->y += line_height;
 }
 
 static const char *debug_game_mode_name(GameMode mode) {
@@ -144,40 +457,101 @@ static const char *debug_game_mode_name(GameMode mode) {
     }
 }
 
+/* ============================================================
+ * PANEL 1: live numbers (from the snapshot being drawn)
+ * ============================================================ */
+
 static void debug_draw_panel(const DebugState *debug, const RenderSnapshot *current) {
     DrawRectangle(DEBUG_PANEL_X, DEBUG_PANEL_Y, DEBUG_PANEL_WIDTH, DEBUG_PANEL_HEIGHT, Fade(BLACK, 0.80f));
     DrawRectangleLines(DEBUG_PANEL_X, DEBUG_PANEL_Y, DEBUG_PANEL_WIDTH, DEBUG_PANEL_HEIGHT, RAYWHITE);
 
-    DebugCursor cursor = {
-        DEBUG_PANEL_X + DEBUG_PADDING,
-        DEBUG_PANEL_Y + DEBUG_PADDING
-    };
+    DebugCursor c = { DEBUG_PANEL_X + DEBUG_PADDING, DEBUG_PANEL_Y + DEBUG_PADDING };
+    const int F = DEBUG_FONT_SIZE, L = DEBUG_LINE_HEIGHT;
 
-    debug_line(&cursor, "DEBUG");
-    debug_line(&cursor, "FPS: %.1f", debug->fps);
-    debug_line(&cursor, "Frame: %.3f ms", debug->frame_time * 1000.0f);
-    debug_line(&cursor, "Mode: %s", debug_game_mode_name(current->mode));
-    debug_line(&cursor, "Time: %.2f", current->game_time);
-    debug_line(&cursor, "Player: (%.1f, %.1f)  score %d",
-               current->player_x, current->player_y, current->player_score);
-    debug_line(&cursor, "Enemy:  (%.1f, %.1f)  score %d",
-               current->enemy_x, current->enemy_y, current->enemy_score);
-    debug_line(&cursor, "Balls: %d / %d", debug->ball_count, MAX_BALLS);
-    debug_line(&cursor, "Particles: %d / %d", debug->particle_count, MAX_PARTICLES);
-    debug_line(&cursor, "Powerups: %d / %d", debug->powerup_count, MAX_POWERUPS);
+    text_line(&c, F, L, RAYWHITE, "DEBUG");
+    text_line(&c, F, L, RAYWHITE, "FPS: %.1f", debug->fps);
+    text_line(&c, F, L, RAYWHITE, "Frame: %.3f ms", debug->frame_time * 1000.0f);
+    text_line(&c, F, L, RAYWHITE, "Mode: %s", debug_game_mode_name(current->mode));
+    text_line(&c, F, L, RAYWHITE, "Time: %.2f", current->game_time);
+    text_line(&c, F, L, RAYWHITE, "Player: (%.1f, %.1f)  score %d",
+              current->player_x, current->player_y, current->player_score);
+    text_line(&c, F, L, RAYWHITE, "Enemy:  (%.1f, %.1f)  score %d",
+              current->enemy_x, current->enemy_y, current->enemy_score);
+    text_line(&c, F, L, RAYWHITE, "Balls: %d / %d", debug->ball_count, MAX_BALLS);
+    text_line(&c, F, L, RAYWHITE, "Particles: %d / %d", debug->particle_count, MAX_PARTICLES);
+    text_line(&c, F, L, RAYWHITE, "Powerups: %d / %d", debug->powerup_count, MAX_POWERUPS);
+}
+
+/* ============================================================
+ * PANEL 2: history (event ring, input log, replay status)
+ * ============================================================ */
+
+static const char *side_name(Side s) { return s == SIDE_PLAYER ? "player" : "enemy"; }
+
+static void event_detail(const SimEvent *e, char *buf, size_t n) {
+    switch (e->type) {
+        case EVT_BALL_HIT_PADDLE:
+            snprintf(buf, n, "%s paddle", side_name(e->side));
+            break;
+        case EVT_BALL_HIT_WALL:
+            snprintf(buf, n, "%s wall", e->wall == WALL_TOP ? "top" : "bottom");
+            break;
+        case EVT_POINT_SCORED:
+            snprintf(buf, n, "%s scores  %d-%d", side_name(e->side), e->score_player, e->score_enemy);
+            break;
+        case EVT_MATCH_ENDED:
+            snprintf(buf, n, "%s wins  %d-%d", side_name(e->side), e->score_player, e->score_enemy);
+            break;
+        default:
+            buf[0] = '\0';
+            break;
+    }
+}
+
+static void debug_draw_history(const DebugHistory *h) {
+    const int x = DEBUG_PANEL_X + DEBUG_PANEL_WIDTH + 10;
+    const int y = DEBUG_PANEL_Y;
+    const int w = SCREEN_WIDTH - x - 10;
+    const int F = HIST_FONT_SIZE, L = HIST_LINE_HEIGHT;
+
+    DrawRectangle(x, y, w, DEBUG_PANEL_HEIGHT, Fade(BLACK, 0.80f));
+    DrawRectangleLines(x, y, w, DEBUG_PANEL_HEIGHT, RAYWHITE);
+
+    DebugCursor c = { x + DEBUG_PADDING, y + DEBUG_PADDING };
+
+    text_line(&c, F, L, RAYWHITE, "SIM   tick %u   seed %016llx",
+              h->tick, (unsigned long long)h->seed);
+
+    text_line(&c, F, L, RAYWHITE, " "); // Spacer line replacing replay status
+
+    /* event history, oldest first */
+    text_line(&c, F, L, RAYWHITE, "EVENTS (last %d)   lost: %u", HIST_EVENT_LINES, h->events_lost);
+    uint64_t total = event_queue_total(h->events);
+    uint32_t avail = total < HIST_EVENT_LINES ? (uint32_t)total : HIST_EVENT_LINES;
+    for (int i = HIST_EVENT_LINES - 1; i >= 0; --i) {
+        SimEvent e;
+        if ((uint32_t)i >= avail || !event_queue_recent(h->events, (uint32_t)i, &e)) {
+            text_line(&c, F, L, RAYWHITE, " ");
+            continue;
+        }
+        char detail[64];
+        event_detail(&e, detail, sizeof detail);
+        text_line(&c, F, L, RAYWHITE, "%6u  %-11s #%u  %s",
+                  e.tick, event_type_name(e.type), e.ball_serial, detail);
+    }
+
+    text_line(&c, F, L, YELLOW, "%s", (h->status && h->status[0]) ? h->status : " ");
+    text_line(&c, F, L, RAYWHITE, "F3 debug  P pause");
 }
 
 /* ============================================================
  * WORLD OVERLAYS (snapshot-based, interpolated like the sprites)
- * ============================================================
- */
+ * ============================================================ */
 
 static bool debug_mode_has_world(GameMode mode) {
     return mode == GAME_PLAYING || mode == GAME_PAUSED;
 }
 
-/* Same (int) truncation render.c applies to the sprite, so outlines
- * land on the exact pixels of what is drawn. */
 static void debug_ball_center(RenderVec2 pos, int *cx, int *cy) {
     *cx = (int)pos.x + (int)(BALL_SIZE * 0.5f);
     *cy = (int)pos.y + (int)(BALL_SIZE * 0.5f);
@@ -196,8 +570,7 @@ static void debug_draw_collisions(
     DrawRectangleLines((int)enemy.x, (int)enemy.y,
                        (int)PADDLE_WIDTH, (int)PADDLE_HEIGHT, RED);
 
-    /* The physics shape is a circle, so draw a circle. */
-    for (int i = 0; i < MAX_BALLS; ++i) {
+    for (int i = 0; i < current->ball_count; ++i) {
         RenderVec2 pos;
         if (!render_ball_position(previous, current, i, alpha, &pos))
             continue;
@@ -213,7 +586,7 @@ static void debug_draw_velocity(
     const RenderSnapshot *current,
     float alpha)
 {
-    for (int i = 0; i < MAX_BALLS; ++i) {
+    for (int i = 0; i < current->ball_count; ++i) {
         RenderVec2 pos;
         if (!render_ball_position(previous, current, i, alpha, &pos))
             continue;
@@ -221,7 +594,6 @@ static void debug_draw_velocity(
         int cx, cy;
         debug_ball_center(pos, &cx, &cy);
 
-        /* Velocity is piecewise-constant between steps: use the latest. */
         const RenderBall *ball = &current->balls[i];
         int ex = cx + (int)(ball->vx * DEBUG_VELOCITY_SCALE);
         int ey = cy + (int)(ball->vy * DEBUG_VELOCITY_SCALE);
@@ -232,21 +604,20 @@ static void debug_draw_velocity(
 
 /* ============================================================
  * ENTRY POINT
- * ============================================================
- */
+ * ============================================================ */
 
 void debug_draw(
     const DebugState *debug,
     const RenderSnapshot *previous,
     const RenderSnapshot *current,
-    float alpha)
+    float alpha,
+    const DebugHistory *history)
 {
     if (debug == NULL || previous == NULL || current == NULL)
         return;
     if (!debug->enabled)
         return;
 
-    /* Overlays only where render_frame() actually draws entities. */
     if (debug_mode_has_world(current->mode)) {
         if (debug->show_collisions)
             debug_draw_collisions(previous, current, alpha);
@@ -255,6 +626,8 @@ void debug_draw(
     }
 
     debug_draw_panel(debug, current);
+    if (history)
+        debug_draw_history(history);
 }
 
 
@@ -262,11 +635,11 @@ entities.h
 
 #ifndef ENTITIES_H
 #define ENTITIES_H
+
 #include "sim_types.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "box2d/box2d.h"
-
 
 #define METERS_PER_PIXEL    (1.0f / 30.0f)
 #define PIXELS_PER_METER    30.0f
@@ -274,46 +647,32 @@ entities.h
 #define PX_TO_M(px) ((px) * METERS_PER_PIXEL)
 #define M_TO_PX(m)  ((m) * PIXELS_PER_METER)
 
-static 
+static inline
 b2Vec2 pixel_to_meter(float x, float y) {
   return (b2Vec2){ PX_TO_M(x), PX_TO_M(y) };
 }
 
-// Ball System
-void         
-ball_pool_init(BallPool* pool);
+/* ---- Ball pool --------------------------------------------------------
+ * ball_pool_init() is a FULL reset: generations and the serial counter
+ * restart. That is safe because handles never outlive a match. */
+void         ball_pool_init(BallPool *pool);
+void         balls_clear(BallPool *balls);
 
-void         
-balls_clear(BallPool *balls);
+/* x, y: top-left in px. vx, vy: px/s. */
+EntityHandle ball_create(BallPool *pool, b2WorldId world,
+                         float x, float y, float vx, float vy);
+bool         ball_is_valid(const BallPool *pool, EntityHandle handle);
+void         ball_destroy(BallPool *pool, EntityHandle handle);
 
-EntityHandle 
-ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction);
+/* Fills `order` with dense indices sorted by ascending serial and returns
+ * the count. This is the canonical iteration order for anything that emits
+ * events or feeds a checksum, so results never depend on pool layout. */
+uint32_t     balls_sorted_by_serial(const BallPool *pool, uint32_t order[MAX_BALLS]);
 
-bool         
-ball_is_valid(const BallPool* pool, EntityHandle handle);
-
-void         
-ball_destroy(BallPool* pool, EntityHandle handle);
-
-// Particle System
-void 
-particles_clear(ParticlePool *particles);
-
-void 
-particles_spawn(ParticlePool *particles, float x, float y, float vx, float vy, float lifetime, float size);
-
-void 
-particles_update(ParticlePool *particles, float dt);
-
-// Powerup System
-void 
-powerups_clear(PowerupPool *powerups);
-
-int
-powerup_create(PowerupPool *powerups, float x, float y, PowerupType type);
-
-void
-powerups_update(PowerupPool *powerups, float dt);
+/* ---- Powerups --------------------------------------------------------- */
+void powerups_clear(PowerupPool *powerups);
+int  powerup_create(PowerupPool *powerups, float x, float y, PowerupType type);
+void powerups_update(PowerupPool *powerups, float dt);
 
 #endif // ENTITIES_H
 
@@ -321,44 +680,38 @@ powerups_update(PowerupPool *powerups, float dt);
 entities.c
 
 #include "entities.h"
-#include <math.h>
+#include <string.h>
 #include "log.h"
 
-void 
-ball_pool_init(BallPool* pool) {
-    pool->count     = 0; 
-    pool->free_head = 0; 
+void
+ball_pool_init(BallPool *pool) {
+    memset(pool, 0, sizeof(*pool));
+
+    pool->free_head   = 0;
+    pool->next_serial = 1;
 
     for (uint32_t i = 0; i < MAX_BALLS; ++i) {
-        pool->slots[i].next_free = (i + 1 < MAX_BALLS) ? (i + 1) : INVALID_INDEX;
-
-        if (pool->slots[i].generation == 0) {
-            pool->slots[i].generation = 1;
-        }
-	pool->slots[i].active = false;
-	pool->slots[i].dense_idx = INVALID_INDEX;
-        pool->body[i] = b2_nullBodyId;
-        pool->x[i]    = 0.0f;
-        pool->y[i]    = 0.0f;
-        pool->vx[i]   = 0.0f;
-        pool->vy[i]   = 0.0f;
-        pool->dense_to_sparse[i] = INVALID_INDEX;
-    } 
+        pool->slots[i].next_free  = (i + 1 < MAX_BALLS) ? (i + 1) : INVALID_INDEX;
+        pool->slots[i].generation = 1;
+        pool->slots[i].active     = false;
+        pool->slots[i].dense_idx  = INVALID_INDEX;
+        pool->body[i]             = b2_nullBodyId;
+        pool->dense_to_sparse[i]  = INVALID_INDEX;
+    }
 }
 
-void balls_clear(BallPool *balls) {
-    for (uint32_t i = 0; i < balls->count; ++i)
-        if (b2Body_IsValid(balls->body[i])) b2DestroyBody(balls->body[i]);
-
-    for (uint32_t i = 0; i < MAX_BALLS; ++i)       
-        if (balls->slots[i].active && ++balls->slots[i].generation == 0)
-            balls->slots[i].generation = 1;
-
+void
+balls_clear(BallPool *balls) {
+    for (uint32_t i = 0; i < balls->count; ++i) {
+        if (b2Body_IsValid(balls->body[i])) {
+            b2DestroyBody(balls->body[i]);
+        }
+    }
     ball_pool_init(balls);
 }
 
-EntityHandle 
-ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction) {
+EntityHandle
+ball_create(BallPool *pool, b2WorldId world, float x, float y, float vx, float vy) {
     if (!b2World_IsValid(world)) return INVALID_HANDLE;
 
     if (pool->free_head == INVALID_INDEX || pool->count >= MAX_BALLS) {
@@ -368,28 +721,24 @@ ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction) 
 
     // Allocate slot
     uint32_t slot_idx = pool->free_head;
-    Slot* slot = &pool->slots[slot_idx];
+    Slot *slot = &pool->slots[slot_idx];
     pool->free_head = slot->next_free;
 
     uint32_t dense_idx = pool->count++;
     slot->dense_idx = dense_idx;
     slot->active = true;
 
-    float angle = 30.0f * (3.14159265359f / 180.0f);
-    float vx    = cosf(angle) * INITIAL_BALL_SPEED * direction;
-    float vy    = sinf(angle) * INITIAL_BALL_SPEED;
-
     b2BodyDef body_def = b2DefaultBodyDef();
     body_def.type = b2_dynamicBody;
     body_def.position = pixel_to_meter(x + BALL_SIZE * 0.5f, y + BALL_SIZE * 0.5f);
     body_def.isBullet = true;
     body_def.enableSleep = false;
-    
+
     b2BodyId body = b2CreateBody(world, &body_def);
-    
-    // 1. Rollback if Box2D body creation fails
+
+    // Rollback if Box2D body creation fails
     if (!b2Body_IsValid(body)) {
-        pool->count--; 
+        pool->count--;
         slot->active = false;
         slot->dense_idx = INVALID_INDEX;
         slot->next_free = pool->free_head;
@@ -398,19 +747,18 @@ ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction) 
         return INVALID_HANDLE;
     }
 
-    // Body is valid, proceed with shape creation
     b2ShapeDef shape_def = b2DefaultShapeDef();
     shape_def.density = 1.0f;
     shape_def.material.friction = 0.0f;
     shape_def.material.restitution = 1.0f;
-    
+
     b2Circle circle = { .center = {0.0f, 0.0f}, .radius = PX_TO_M(BALL_SIZE * 0.5f) };
     b2ShapeId shape_id = b2CreateCircleShape(body, &shape_def, &circle);
 
-    // 2. Rollback if Box2D shape creation fails (destroy body + reset slot)
+    // Rollback if Box2D shape creation fails (destroy body + reset slot)
     if (!b2Shape_IsValid(shape_id)) {
         b2DestroyBody(body);
-        pool->count--; 
+        pool->count--;
         slot->active = false;
         slot->dense_idx = INVALID_INDEX;
         slot->next_free = pool->free_head;
@@ -427,8 +775,10 @@ ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction) 
     pool->vx[dense_idx]   = vx;
     pool->vy[dense_idx]   = vy;
     pool->dense_to_sparse[dense_idx] = slot_idx;
+    pool->serial[dense_idx] = pool->next_serial++;   /* only on success */
 
-    LOG_ENTITY("ball created: slot=%u gen=%u x=%.1f y=%.1f", slot_idx, slot->generation, x, y);
+    LOG_ENTITY("ball created: slot=%u gen=%u serial=%u", slot_idx, slot->generation,
+               pool->serial[dense_idx]);
 
     return (EntityHandle){
         .index = slot_idx,
@@ -436,45 +786,42 @@ ball_create(BallPool* pool, b2WorldId world, float x, float y, float direction) 
     };
 }
 
-
-
-bool ball_is_valid(const BallPool* pool, EntityHandle handle) {
+bool
+ball_is_valid(const BallPool *pool, EntityHandle handle) {
     if (handle.index >= MAX_BALLS || handle.generation == 0) return false;
 
     const Slot *slot = &pool->slots[handle.index];
 
-    // 1. Must be explicitly marked active
     if (!slot->active) return false;
-
-    // 2. Generation must match (guards against ABA reuse)
     if (slot->generation != handle.generation) return false;
 
-    // 3. Bidirectional dense-to-sparse integrity check
     uint32_t dense_idx = slot->dense_idx;
     if (dense_idx >= pool->count) return false;
 
     return pool->dense_to_sparse[dense_idx] == handle.index;
 }
 
-void ball_destroy(BallPool* pool, EntityHandle handle) {
+void
+ball_destroy(BallPool *pool, EntityHandle handle) {
     if (!ball_is_valid(pool, handle)) return;
 
     uint32_t slot_idx = handle.index;
-    Slot* slot = &pool->slots[slot_idx];
+    Slot *slot = &pool->slots[slot_idx];
 
     uint32_t dead_dense = slot->dense_idx;
-    uint32_t last_dense = --pool->count; 
+    uint32_t last_dense = --pool->count;
 
     if (b2Body_IsValid(pool->body[dead_dense])) {
         b2DestroyBody(pool->body[dead_dense]);
     }
 
     if (dead_dense != last_dense) {
-        pool->body[dead_dense] = pool->body[last_dense];
-        pool->x[dead_dense]    = pool->x[last_dense];
-        pool->y[dead_dense]    = pool->y[last_dense];
-        pool->vx[dead_dense]   = pool->vx[last_dense];
-        pool->vy[dead_dense]   = pool->vy[last_dense];
+        pool->body[dead_dense]   = pool->body[last_dense];
+        pool->x[dead_dense]      = pool->x[last_dense];
+        pool->y[dead_dense]      = pool->y[last_dense];
+        pool->vx[dead_dense]     = pool->vx[last_dense];
+        pool->vy[dead_dense]     = pool->vy[last_dense];
+        pool->serial[dead_dense] = pool->serial[last_dense];
 
         uint32_t moved_slot = pool->dense_to_sparse[last_dense];
         pool->dense_to_sparse[dead_dense] = moved_slot;
@@ -486,11 +833,12 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
     pool->y[last_dense]               = 0.0f;
     pool->vx[last_dense]              = 0.0f;
     pool->vy[last_dense]              = 0.0f;
+    pool->serial[last_dense]          = 0;
     pool->dense_to_sparse[last_dense] = INVALID_INDEX;
 
     slot->active = false;
     slot->dense_idx = INVALID_INDEX;
-    
+
     // Safely increment generation, skipping reserved value 0 on wrap-around
     slot->generation++;
     if (slot->generation == 0) {
@@ -503,63 +851,19 @@ void ball_destroy(BallPool* pool, EntityHandle handle) {
     LOG_ENTITY("ball destroyed: slot=%u", slot_idx);
 }
 
-
-void particles_clear(ParticlePool *particles) {
-    particles->free_head = 0;
-
-    for (int i = 0; i < MAX_PARTICLES; ++i) {
-        particles->active[i] = 0;
-        // Apuntar al siguiente elemento disponible; -1 indica el final de la lista
-        particles->next_free[i] = (i + 1 < MAX_PARTICLES) ? (i + 1) : -1;
-    }
-}
-
-
-void particles_spawn(ParticlePool *particles, float x, float y, float vx, float vy, float lifetime, float size) {
-    // Si free_head es -1, la reserva de partículas está llena
-    if (particles->free_head < 0) return;
-
-    // Extraer ranura libre en O(1)
-    int slot = particles->free_head;
-    particles->free_head = particles->next_free[slot];
-
-    particles->active[slot]       = 1;
-    particles->x[slot]            = x;
-    particles->y[slot]            = y;
-    particles->vx[slot]           = vx;
-    particles->vy[slot]           = vy;
-    particles->max_lifetime[slot] = lifetime;
-    particles->lifetime[slot]     = lifetime;
-    particles->size[slot]         = size;
-}
-
-
-void 
-particles_update(ParticlePool *particles, float dt) {
-    // Amortiguación independiente de la tasa de refresco (base normalizada a 60 FPS)
-    float damping = powf(0.98f, dt * 60.0f);
-
-    for (int i = 0; i < MAX_PARTICLES; ++i) {
-        if (!particles->active[i]) continue;
-
-        particles->lifetime[i] -= dt;
-        if (particles->lifetime[i] <= 0.0f) {
-            particles->active[i] = 0;
-
-            // Devolver la ranura a la lista de libres en O(1)
-            particles->next_free[i] = particles->free_head;
-            particles->free_head    = i;
-            continue;
+uint32_t
+balls_sorted_by_serial(const BallPool *pool, uint32_t order[MAX_BALLS]) {
+    uint32_t n = pool->count;
+    for (uint32_t i = 0; i < n; ++i) {
+        uint32_t j = i;
+        while (j > 0 && pool->serial[order[j - 1]] > pool->serial[i]) {
+            order[j] = order[j - 1];
+            --j;
         }
-
-        particles->x[i]  += particles->vx[i] * dt;
-        particles->y[i]  += particles->vy[i] * dt;
-        particles->vx[i] *= damping; // Aplicación del factor ajustado a dt
-        particles->vy[i] *= damping;
+        order[j] = i;
     }
+    return n;
 }
-
-
 
 void powerups_clear(PowerupPool *powerups) {
     for (int i = 0; i < MAX_POWERUPS; ++i) {
@@ -590,223 +894,452 @@ void powerups_update(PowerupPool *powerups, float dt) {
 }
 
 
+events.h
 
+#ifndef EVENTS_H
+#define EVENTS_H
 
-game.h
-
-#ifndef GAME_H
-#define GAME_H
-
-#include "sim_types.h"
-#include "render_types.h"
-
-void
-game_init(
-  SimulationState *state
-);
-
-void
-game_start(
-  SimulationState *state
-);
-
-/* Call exactly ONCE per rendered frame, right after input_sample().
+/* Outbound game events: simulation -> everything else.
  *
- * Owns every game-mode transition driven by the player:
- *   TITLE/GAME_OVER --start--> PLAYING
- *   PLAYING         --pause--> PAUSED
- *   PAUSED          --pause--> PLAYING
+ * Plain data only. An event never carries an entity handle, because the
+ * ball it describes may already be destroyed by the time anyone reads it.
+ * Identity, when needed, is a per-match "ball serial" that is never reused.
  *
- * Edge-triggered flags (start, pause) are read only here. They are
- * "consumed" simply because GameInput is re-sampled every frame, so
- * nothing needs to mutate the input. */
-void
-game_handle_input(
-  SimulationState *state,
-  const GameInput *input
-);
+ * Ordering rule (relied on by replays and checksums):
+ *   by tick, then by the fixed order of simulation systems, then by ball
+ *   serial (ascending). */
 
-/* Advance the simulation by one FIXED timestep. Call from the
- * accumulator loop, zero or more times per frame.
- *
- * Reads only held-state input (up/down). Does nothing unless the game
- * is in GAME_PLAYING. May itself change the mode (e.g. to GAME_OVER). */
-void
-game_step(
-  SimulationState *state,
-  const GameInput *input,
-  float dt
-);
+#include <stdbool.h>
+#include <stdint.h>
+#include "game_types.h"
 
-// Copy ONLY rendering-relevant simulation data.
-void
-game_make_render_snapshot(
-  const SimulationState *state,
-  RenderSnapshot *snapshot
-);
+#define EVENT_RING_CAPACITY 256u   /* power of two */
+
+_Static_assert((EVENT_RING_CAPACITY & (EVENT_RING_CAPACITY - 1u)) == 0u,
+               "EVENT_RING_CAPACITY must be a power of two");
+
+typedef enum {
+    EVT_NONE = 0,
+    EVT_MATCH_STARTED,      /* tick 0                                          */
+    EVT_BALL_SERVED,        /* ball_serial, x/y, vx/vy                         */
+    EVT_BALL_HIT_PADDLE,    /* ball_serial, x/y, side = which paddle           */
+    EVT_BALL_HIT_WALL,      /* ball_serial, x/y, wall = top or bottom          */
+    EVT_POINT_SCORED,       /* ball_serial, x/y where it left, side = scorer   */
+    EVT_MATCH_ENDED         /* side = winner                                   */
+} EventType;
+
+typedef struct {
+    uint32_t  tick;
+    EventType type;
+    uint32_t  ball_serial;
+    float     x, y;           /* px, ball centre */
+    float     vx, vy;         /* px/s */
+    Side      side;
+    Wall      wall;
+    int       score_player;   /* scores AFTER this event */
+    int       score_enemy;
+} SimEvent;
+
+/* Bounded history ring. Oldest entries are overwritten. `head` counts every
+ * event pushed since the last clear, so (head - 1) is the newest. */
+typedef struct {
+    SimEvent events[EVENT_RING_CAPACITY];
+    uint64_t head;
+} EventQueue;
+
+/* Each consumer owns a cursor, so consumers never interfere. */
+typedef struct {
+    uint64_t next;   /* sequence number of the next event to read */
+    uint32_t lost;   /* events overwritten before this consumer read them */
+} EventCursor;
+
+void     event_queue_clear(EventQueue *q);
+void     event_queue_push(EventQueue *q, const SimEvent *e);   /* q may be NULL */
+uint64_t event_queue_total(const EventQueue *q);
+
+/* back = 0 is the newest event. Returns false if there is no such event. */
+bool     event_queue_recent(const EventQueue *q, uint32_t back, SimEvent *out);
+
+void     event_cursor_sync(const EventQueue *q, EventCursor *c);   /* skip to head */
+bool     event_cursor_read(const EventQueue *q, EventCursor *c, SimEvent *out);
+
+const char *event_type_name(EventType type);
 
 #endif
 
 
-game.c
+events.c
 
-#include "game.h"
+#include "events.h"
+
+#define RING_MASK (EVENT_RING_CAPACITY - 1u)
+
+void event_queue_clear(EventQueue *q) {
+    if (q) q->head = 0;
+}
+
+void event_queue_push(EventQueue *q, const SimEvent *e) {
+    if (!q || !e) return;
+    q->events[q->head & RING_MASK] = *e;
+    q->head++;
+}
+
+uint64_t event_queue_total(const EventQueue *q) {
+    return q ? q->head : 0;
+}
+
+bool event_queue_recent(const EventQueue *q, uint32_t back, SimEvent *out) {
+    if (!q || !out) return false;
+    uint64_t available = q->head < EVENT_RING_CAPACITY ? q->head : EVENT_RING_CAPACITY;
+    if ((uint64_t)back >= available) return false;
+    *out = q->events[(q->head - 1u - back) & RING_MASK];
+    return true;
+}
+
+void event_cursor_sync(const EventQueue *q, EventCursor *c) {
+    c->next = q ? q->head : 0;
+}
+
+bool event_cursor_read(const EventQueue *q, EventCursor *c, SimEvent *out) {
+    if (!q || !c || !out) return false;
+
+    if (c->next > q->head)            /* queue was cleared under us */
+        c->next = q->head;
+
+    uint64_t oldest = q->head > EVENT_RING_CAPACITY ? q->head - EVENT_RING_CAPACITY : 0;
+    if (c->next < oldest) {           /* fell behind: those events are gone */
+        c->lost += (uint32_t)(oldest - c->next);
+        c->next = oldest;
+    }
+
+    if (c->next >= q->head) return false;
+
+    *out = q->events[c->next & RING_MASK];
+    c->next++;
+    return true;
+}
+
+const char *event_type_name(EventType type) {
+    switch (type) {
+        case EVT_MATCH_STARTED:   return "MATCH_START";
+        case EVT_BALL_SERVED:     return "SERVE";
+        case EVT_BALL_HIT_PADDLE: return "PADDLE_HIT";
+        case EVT_BALL_HIT_WALL:   return "WALL_HIT";
+        case EVT_POINT_SCORED:    return "SCORE";
+        case EVT_MATCH_ENDED:     return "MATCH_END";
+        default:                  return "NONE";
+    }
+}
+
+
+fake_box2d.c
+
+#include "box2d/box2d.h"
+#include <math.h>
 #include <string.h>
-#include "entities.h"
-#include "simulation.h"
 
-static
-void reset_paddles(SimulationState *state) {
-    state->player.x      = COURT_LEFT + 20.0f;
-    state->player.y      = SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
-    state->player.width  = PADDLE_WIDTH;
-    state->player.height = PADDLE_HEIGHT;
-    state->player.speed  = PLAYER_SPEED;
-  
-    state->enemy.x      = COURT_RIGHT - PADDLE_WIDTH - 20.0f;
-    state->enemy.y      = SCREEN_HEIGHT / 2.0f - PADDLE_HEIGHT / 2.0f;
-    state->enemy.width  = PADDLE_WIDTH;
-    state->enemy.height = PADDLE_HEIGHT;
-    state->enemy.speed  = PLAYER_SPEED;
+#define MAX_WORLDS 4
+#define MAX_BODIES 64
+
+typedef struct {
+    bool     alive;
+    uint16_t gen;
+    b2BodyType type;
+    b2Vec2   pos, vel;
+    int      shape;            /* 0 none, 1 box, 2 circle */
+    float    hx, hy, radius;
+} FBody;
+
+typedef struct {
+    bool     alive;
+    uint16_t gen;
+    FBody    bodies[MAX_BODIES];
+} FWorld;
+
+static FWorld   g_worlds[MAX_WORLDS];
+static uint16_t g_next_gen = 1;
+
+static FWorld *world_of(b2WorldId id) {
+    if (id.index1 <= 0 || id.index1 > MAX_WORLDS) return NULL;
+    FWorld *w = &g_worlds[id.index1 - 1];
+    return (w->alive && w->gen == id.generation) ? w : NULL;
 }
 
-void
-game_init(SimulationState *state) {
-    memset(state, 0, sizeof(*state));
-    state->mode = GAME_TITLE;
-    
-    reset_paddles(state);
-
-    simulation_init(state);
-    ball_pool_init(&state->balls);
-    particles_clear(&state->particles);
-    powerups_clear(&state->powerups);
+static FBody *body_of(b2BodyId id) {
+    if (id.index1 <= 0 || id.index1 > MAX_BODIES) return NULL;
+    if (id.world0 >= MAX_WORLDS) return NULL;
+    FWorld *w = &g_worlds[id.world0];
+    if (!w->alive) return NULL;
+    FBody *b = &w->bodies[id.index1 - 1];
+    return (b->alive && b->gen == id.generation) ? b : NULL;
 }
 
-void
-game_start(SimulationState *state) {
-    state->mode      = GAME_PLAYING;
-    state->game_time = 0.0f;
-    state->winner    = 0;
+b2WorldDef b2DefaultWorldDef(void) { b2WorldDef d; memset(&d, 0, sizeof d); return d; }
+b2BodyDef  b2DefaultBodyDef(void)  { b2BodyDef d;  memset(&d, 0, sizeof d); d.type = b2_staticBody; return d; }
+b2ShapeDef b2DefaultShapeDef(void) { b2ShapeDef d; memset(&d, 0, sizeof d); d.density = 1.0f; return d; }
+b2Polygon  b2MakeBox(float hx, float hy) { return (b2Polygon){ hx, hy }; }
 
-    // Explicitly reset scores for a fresh match
-    state->player.score = 0;
-    state->enemy.score  = 0;
-
-    reset_paddles(state);
-
-    particles_clear(&state->particles);
-    powerups_clear(&state->powerups);
-
-    state->powerup_timer = 0.0f;
-
-    // simulation_reset repositions paddle bodies and clears the balls
-    simulation_reset(state);
-
-    ball_create(
-        &state->balls,
-        state->world,
-        SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
-        SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
-        1.0f
-    );
+b2WorldId b2CreateWorld(const b2WorldDef *def) {
+    (void)def;
+    for (int i = 0; i < MAX_WORLDS; ++i) {
+        if (g_worlds[i].alive) continue;
+        memset(&g_worlds[i], 0, sizeof g_worlds[i]);
+        g_worlds[i].alive = true;
+        g_worlds[i].gen = g_next_gen++;
+        return (b2WorldId){ i + 1, 0, g_worlds[i].gen };
+    }
+    return b2_nullWorldId;
 }
 
-/* ============================================================
- * STATE MACHINE (once per frame)
- * ============================================================
- */
+void b2DestroyWorld(b2WorldId id) {
+    FWorld *w = world_of(id);
+    if (!w) return;
+    memset(w, 0, sizeof *w);        /* every body dies with the world */
+}
 
-void
-game_handle_input(SimulationState *state, const GameInput *input)
-{
-    switch (state->mode) {
-        case GAME_TITLE:
-        case GAME_OVER:
-            if (input->start)
-                game_start(state);
-            break;
+bool b2World_IsValid(b2WorldId id) { return world_of(id) != NULL; }
 
-        case GAME_PLAYING:
-            if (input->pause)
-                state->mode = GAME_PAUSED;
-            break;
+b2BodyId b2CreateBody(b2WorldId wid, const b2BodyDef *def) {
+    FWorld *w = world_of(wid);
+    if (!w) return b2_nullBodyId;
+    for (int i = 0; i < MAX_BODIES; ++i) {
+        if (w->bodies[i].alive) continue;
+        FBody *b = &w->bodies[i];
+        memset(b, 0, sizeof *b);
+        b->alive = true;
+        b->gen = g_next_gen++;
+        b->type = def->type;
+        b->pos = def->position;
+        return (b2BodyId){ i + 1, (uint16_t)(wid.index1 - 1), b->gen };
+    }
+    return b2_nullBodyId;
+}
 
-        case GAME_PAUSED:
-            if (input->pause)
-                state->mode = GAME_PLAYING;
-            break;
+void b2DestroyBody(b2BodyId id) {
+    FBody *b = body_of(id);
+    if (b) memset(b, 0, sizeof *b);
+}
+
+bool b2Body_IsValid(b2BodyId id) { return body_of(id) != NULL; }
+
+void b2Body_SetLinearVelocity(b2BodyId id, b2Vec2 v) { FBody *b = body_of(id); if (b) b->vel = v; }
+b2Vec2 b2Body_GetLinearVelocity(b2BodyId id) { FBody *b = body_of(id); return b ? b->vel : (b2Vec2){0, 0}; }
+b2Vec2 b2Body_GetPosition(b2BodyId id) { FBody *b = body_of(id); return b ? b->pos : (b2Vec2){0, 0}; }
+
+b2ShapeId b2CreatePolygonShape(b2BodyId id, const b2ShapeDef *def, const b2Polygon *box) {
+    (void)def;
+    FBody *b = body_of(id);
+    if (!b) return (b2ShapeId){0, 0, 0};
+    b->shape = 1; b->hx = box->hx; b->hy = box->hy;
+    return (b2ShapeId){ id.index1, id.world0, id.generation };
+}
+
+b2ShapeId b2CreateCircleShape(b2BodyId id, const b2ShapeDef *def, const b2Circle *c) {
+    (void)def;
+    FBody *b = body_of(id);
+    if (!b) return (b2ShapeId){0, 0, 0};
+    b->shape = 2; b->radius = c->radius;
+    return (b2ShapeId){ id.index1, id.world0, id.generation };
+}
+
+bool b2Shape_IsValid(b2ShapeId s) {
+    return body_of((b2BodyId){ s.index1, s.world0, s.generation }) != NULL;
+}
+
+static float clampf(float v, float lo, float hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+static void collide_circle_box(FBody *c, const FBody *b) {
+    float cx = clampf(c->pos.x, b->pos.x - b->hx, b->pos.x + b->hx);
+    float cy = clampf(c->pos.y, b->pos.y - b->hy, b->pos.y + b->hy);
+    float dx = c->pos.x - cx, dy = c->pos.y - cy;
+    if (dx * dx + dy * dy >= c->radius * c->radius) return;
+
+    if (fabsf(dx) > fabsf(dy)) {
+        float sgn = dx >= 0.0f ? 1.0f : -1.0f;
+        if (c->vel.x * sgn < 0.0f) c->vel.x = -c->vel.x;
+        c->pos.x = cx + sgn * c->radius;
+    } else {
+        float sgn = dy >= 0.0f ? 1.0f : -1.0f;
+        if (c->vel.y * sgn < 0.0f) c->vel.y = -c->vel.y;
+        c->pos.y = cy + sgn * c->radius;
     }
 }
 
-/* ============================================================
- * FIXED STEP (zero or more times per frame)
- * ============================================================
- */
+void b2World_Step(b2WorldId id, float dt, int substeps) {
+    (void)substeps;
+    FWorld *w = world_of(id);
+    if (!w) return;
 
-void
-game_step(SimulationState *state, const GameInput *input, float dt)
-{
-    if (state->mode != GAME_PLAYING)
-        return;
-
-    state->game_time += dt;
-    simulation_update(state, input, dt);
-}
-
-/* ============================================================
- * RENDER SNAPSHOT
- * ============================================================
- */
-
-void
-game_make_render_snapshot(const SimulationState *state, RenderSnapshot *snapshot) {
-    snapshot->player_x     = state->player.x;
-    snapshot->player_y     = state->player.y;
-    snapshot->player_score = state->player.score;
-
-    snapshot->enemy_x      = state->enemy.x;
-    snapshot->enemy_y      = state->enemy.y;
-    snapshot->enemy_score  = state->enemy.score;
-  
-    snapshot->mode         = state->mode;
-    snapshot->winner       = state->winner;
-    snapshot->game_time    = state->game_time;
-    snapshot->ball_count   = (int)state->balls.count;
-  
-    // 1. Deactivate every ball slot in the snapshot
-    for (int i = 0; i < MAX_BALLS; ++i) {
-        snapshot->balls[i].active = false;
+    for (int i = 0; i < MAX_BODIES; ++i) {
+        FBody *b = &w->bodies[i];
+        if (!b->alive || b->type == b2_staticBody) continue;
+        b->pos.x += b->vel.x * dt;
+        b->pos.y += b->vel.y * dt;
     }
-
-    // 2. Map each live ball to its stable sparse slot (dense_to_sparse)
-    for (uint32_t d = 0; d < state->balls.count; ++d) {
-        uint32_t slot_idx = state->balls.dense_to_sparse[d];
-        if (slot_idx < MAX_BALLS) {
-            snapshot->balls[slot_idx].active     = true;
-            snapshot->balls[slot_idx].x          = state->balls.x[d];
-            snapshot->balls[slot_idx].y          = state->balls.y[d];
-            snapshot->balls[slot_idx].vx         = state->balls.vx[d];
-            snapshot->balls[slot_idx].vy         = state->balls.vy[d];
-            snapshot->balls[slot_idx].generation = state->balls.slots[slot_idx].generation;
+    for (int i = 0; i < MAX_BODIES; ++i) {
+        FBody *c = &w->bodies[i];
+        if (!c->alive || c->type != b2_dynamicBody || c->shape != 2) continue;
+        for (int j = 0; j < MAX_BODIES; ++j) {
+            FBody *o = &w->bodies[j];
+            if (!o->alive || o->shape != 1) continue;
+            collide_circle_box(c, o);
         }
     }
+}
+
+
+fx.h
+
+#ifndef FX_H
+#define FX_H
+
+/* Visual effects: an EVENT CONSUMER, entirely outside the simulation.
+ *
+ * Particles used to be spawned inside scoring_system with raylib's RNG.
+ * Now the sim only says "a point was scored at (x, y)" and this module
+ * decides what that looks like. It has its own RNG stream, so effects can
+ * be changed freely without altering a single match, and it advances in
+ * lockstep with sim ticks, so replays (and seeks) reproduce the same
+ * particles. */
+
+#include <stdint.h>
+#include "config.h"
+#include "rng.h"
+#include "events.h"
+
+typedef struct {
+  int   active[MAX_PARTICLES];
+  float x[MAX_PARTICLES];
+  float y[MAX_PARTICLES];
+  float vx[MAX_PARTICLES];
+  float vy[MAX_PARTICLES];
+  float lifetime[MAX_PARTICLES];
+  float max_lifetime[MAX_PARTICLES];
+  float size[MAX_PARTICLES];
+
+  int free_head;
+  int next_free[MAX_PARTICLES];
+} ParticlePool;
+
+typedef struct {
+    ParticlePool particles;
+    Rng          rng;      /* presentation stream (stream 2) */
+    EventCursor  cursor;
+} Fx;
+
+/* Clears particles, seeds the RNG from the match seed, and positions the
+ * cursor at the current end of `queue`. */
+void fx_reset(Fx *fx, uint64_t seed, const EventQueue *queue);
+
+/* Reads every event this consumer has not seen yet. */
+void fx_consume_events(Fx *fx, const EventQueue *queue);
+
+/* Advance particles. Called once per sim tick. */
+void fx_update(Fx *fx, float dt);
+
+#endif
+
+
+fx.c
+
+#include "fx.h"
+#include <math.h>
+#include <string.h>
+
+#define FX_PI 3.14159265358979f
+
+static void particles_clear(ParticlePool *particles) {
+    particles->free_head = 0;
 
     for (int i = 0; i < MAX_PARTICLES; ++i) {
-        snapshot->particles[i].active       = state->particles.active[i];
-        snapshot->particles[i].x            = state->particles.x[i];
-        snapshot->particles[i].y            = state->particles.y[i];
-        snapshot->particles[i].lifetime     = state->particles.lifetime[i];
-        snapshot->particles[i].max_lifetime = state->particles.max_lifetime[i];
-        snapshot->particles[i].size         = state->particles.size[i];
+        particles->active[i] = 0;
+        particles->next_free[i] = (i + 1 < MAX_PARTICLES) ? (i + 1) : -1;
     }
+}
 
-    for (int i = 0; i < MAX_POWERUPS; ++i) {
-        snapshot->powerups[i].active = state->powerups.active[i];
-        snapshot->powerups[i].x      = state->powerups.x[i];
-        snapshot->powerups[i].y      = state->powerups.y[i];
-        snapshot->powerups[i].type   = state->powerups.type[i];
+static void particles_spawn(ParticlePool *particles, float x, float y,
+                            float vx, float vy, float lifetime, float size) {
+    if (particles->free_head < 0) return;   /* pool full */
+
+    int slot = particles->free_head;
+    particles->free_head = particles->next_free[slot];
+
+    particles->active[slot]       = 1;
+    particles->x[slot]            = x;
+    particles->y[slot]            = y;
+    particles->vx[slot]           = vx;
+    particles->vy[slot]           = vy;
+    particles->max_lifetime[slot] = lifetime;
+    particles->lifetime[slot]     = lifetime;
+    particles->size[slot]         = size;
+}
+
+static void particles_update(ParticlePool *particles, float dt) {
+    /* Frame-rate independent damping (normalised to 60 FPS). */
+    float damping = powf(0.98f, dt * 60.0f);
+
+    for (int i = 0; i < MAX_PARTICLES; ++i) {
+        if (!particles->active[i]) continue;
+
+        particles->lifetime[i] -= dt;
+        if (particles->lifetime[i] <= 0.0f) {
+            particles->active[i] = 0;
+            particles->next_free[i] = particles->free_head;
+            particles->free_head    = i;
+            continue;
+        }
+
+        particles->x[i]  += particles->vx[i] * dt;
+        particles->y[i]  += particles->vy[i] * dt;
+        particles->vx[i] *= damping;
+        particles->vy[i] *= damping;
     }
+}
+
+static float clampf(float v, float lo, float hi) {
+    return v < lo ? lo : (v > hi ? hi : v);
+}
+
+/* One RNG draw per statement, so the draw order is fixed. */
+static void spawn_score_burst(Fx *fx, float x, float y) {
+    /* The ball is already outside the court when it scores: pull the burst
+     * back to the court edge so it is actually visible. */
+    x = clampf(x, COURT_LEFT, COURT_RIGHT);
+    y = clampf(y, COURT_TOP, COURT_BOTTOM);
+
+    for (int p = 0; p < PARTICLE_COUNT_ON_SCORE; ++p) {
+        float angle    = (float)rng_range(&fx->rng, 0, 359) * (FX_PI / 180.0f);
+        float speed    = (float)rng_range(&fx->rng, PARTICLE_MIN_SPEED, PARTICLE_MAX_SPEED);
+        float lifetime = (float)rng_range(&fx->rng, PARTICLE_MIN_LIFETIME, PARTICLE_MAX_LIFETIME) / 1000.0f;
+        float size     = (float)rng_range(&fx->rng, PARTICLE_MIN_SIZE, PARTICLE_MAX_SIZE);
+
+        particles_spawn(&fx->particles, x, y,
+                        cosf(angle) * speed, sinf(angle) * speed, lifetime, size);
+    }
+}
+
+void fx_reset(Fx *fx, uint64_t seed, const EventQueue *queue) {
+    memset(fx, 0, sizeof *fx);
+    particles_clear(&fx->particles);
+    rng_seed(&fx->rng, seed, 2);
+    event_cursor_sync(queue, &fx->cursor);
+}
+
+void fx_consume_events(Fx *fx, const EventQueue *queue) {
+    SimEvent e;
+    while (event_cursor_read(queue, &fx->cursor, &e)) {
+        switch (e.type) {
+            case EVT_POINT_SCORED:
+                spawn_score_burst(fx, e.x, e.y);
+                break;
+            default:
+                break;   /* other events: future consumers (sound, shake...) */
+        }
+    }
+}
+
+void fx_update(Fx *fx, float dt) {
+    particles_update(&fx->particles, dt);
 }
 
 
@@ -833,13 +1366,74 @@ void input_sample(GameInput *input)
 {
   input->up    = IsKeyDown(KEY_UP);
   input->down  = IsKeyDown(KEY_DOWN);
-  input->start = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE); 
-  input->pause = IsKeyPressed(KEY_P);
+
+  /* Edge-triggered: true for exactly the one frame the key goes down. */
+  input->start = IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE);
+  input->pause = IsKeyPressed(KEY_P) || IsKeyPressed(KEY_ESCAPE);
+
+  input->step         = IsKeyPressed(KEY_PERIOD);
+  input->seek_back    = IsKeyPressed(KEY_LEFT_BRACKET);
+  input->seek_fwd     = IsKeyPressed(KEY_RIGHT_BRACKET);
+  input->debug_toggle = IsKeyPressed(KEY_F3);
+}
+
+
+input_source.h
+
+#ifndef INPUT_SOURCE_H
+#define INPUT_SOURCE_H
+
+/* One interface in front of every producer of per-tick simulation input.
+ * The simulation cannot tell them apart, which is what makes replays and
+ * headless tests possible.
+ *
+ *   LIVE   - the keyboard. The app sets the held state once per frame and
+ *            every tick of that frame sees it.
+ *   REPLAY - a recorded stream. Also how scripted tests are built: fill a
+ *            ReplayData in memory and play it back. */
+
+#include <stdbool.h>
+#include <stdint.h>
+#include "game_types.h"
+
+typedef enum { INPUT_SOURCE_LIVE, INPUT_SOURCE_REPLAY } InputSourceKind;
+
+typedef struct {
+    InputSourceKind   kind;
+    TickInput         live_held;
+} InputSource;
+
+void      input_source_use_live(InputSource *s);
+void      input_source_set_live_held(InputSource *s, TickInput held);
+void      input_source_rewind(InputSource *s);
+TickInput input_source_at(InputSource *s, uint32_t tick);   /* ticks in increasing order */
+
+#endif
+
+
+input_source.c
+
+#include <stddef.h>
+#include "input_source.h"
+
+void input_source_use_live(InputSource *s) {
+    s->kind      = INPUT_SOURCE_LIVE;
+    s->live_held = (TickInput){ false, false };
 }
 
 
 
+void input_source_set_live_held(InputSource *s, TickInput held) {
+    s->live_held = held;
+}
 
+
+
+TickInput input_source_at(InputSource *s, uint32_t tick) {
+    if (s->kind == INPUT_SOURCE_LIVE)
+        return s->live_held;
+    return (TickInput){ false, false };
+}
 
 
 log.h
@@ -1006,25 +1600,17 @@ log_message(
 
 main.c
 
+#include <time.h>
+
 #include "raylib.h"
-#include "game.h"
+#include "app.h"
 #include "input.h"
 #include "log.h"
 #include "debug.h"
 #include "render.h"
-#include "simulation.h"
 
-// Make both snapshots reflect the current state, so the next frame
-// renders it without interpolating from a stale previous state.
-static void
-snapshots_reset(
-    const SimulationState *state,
-    RenderSnapshot *previous,
-    RenderSnapshot *current)
-{
-    game_make_render_snapshot(state, current);
-    *previous = *current;
-}
+/* main() is only the platform shell: window, input sampling, drawing.
+ * Everything about the game itself lives in the app layer. */
 
 int main(void) {
     InitWindow(
@@ -1033,89 +1619,58 @@ int main(void) {
         "Pong"
     );
 
+    /* ESC is the pause key; without this raylib would close the window. */
+    SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 
-    SimulationState state;
-    GameInput input;
-
-    RenderSnapshot previous = {0};
-    RenderSnapshot current  = {0};
-
-    game_init(&state);
-
+    /* Logging must be configured BEFORE anything that logs. */
     log_init();
     log_enable(PONG_LOG_GAME);
     log_enable(PONG_LOG_SIMULATION);
     log_enable(PONG_LOG_ENTITY);
-    
+
+    /* ~100 KB (two snapshots): keep it off the stack. Zero-initialised. */
+    static App app;
+    app_init(&app, (uint64_t)time(NULL));
+
     DebugState debug;
     debug_init(&debug);
     debug.enabled = 1;
     debug.show_collisions = 1;
     debug.show_velocity = 1;
 
-    snapshots_reset(&state, &previous, &current);
-
-    double accumulator = 0.0;
-
     while (!WindowShouldClose()) {
+        GameInput input;
         input_sample(&input);
 
-        // Real duration of the last frame: debug readout only.
+        /* Real duration of the last frame: debug readout only. */
         double raw_frame_time = GetFrameTime();
 
-        // Clamped copy: drives the simulation (spiral-of-death guard).
+        /* Clamped copy: drives the simulation (spiral-of-death guard). */
         double frame_time = raw_frame_time;
         if (frame_time > MAX_FRAME_TIME)
             frame_time = MAX_FRAME_TIME;
 
-        // 1. Once per frame: player-driven mode transitions.
-        GameMode mode_before = state.mode;
-        game_handle_input(&state, &input);
+        if (input.debug_toggle)
+            debug.enabled = !debug.enabled;
 
-        if (state.mode != mode_before) {
-            accumulator = 0.0;
-            snapshots_reset(&state, &previous, &current);
-        }
+        app_frame(&app, &input, frame_time);
 
-        // 2. Fixed-timestep simulation: held input (up/down) only.
-        if (state.mode == GAME_PLAYING) {
-            accumulator += frame_time;
+        AppView view = app_view(&app);
+        DebugHistory history = app_debug_history(&app);
 
-            while (state.mode == GAME_PLAYING && accumulator >= SIM_DT) {
-                previous = current;
-
-                game_step(&state, &input, (float)SIM_DT);
-                game_make_render_snapshot(&state, &current);
-
-                accumulator -= SIM_DT;
-            }
-
-            // The simulation itself ended the match (GAME_OVER).
-            if (state.mode != GAME_PLAYING) {
-                accumulator = 0.0;
-                snapshots_reset(&state, &previous, &current);
-            }
-        }
-
-        float alpha = (state.mode == GAME_PLAYING) ? (float)(accumulator / SIM_DT) : 1.0f;
-
-        // Debug works from the same snapshot that is about to be drawn.
-        debug_update(&debug, &current, (float)raw_frame_time);
+        debug_update(&debug, view.current, (float)raw_frame_time);
 
         BeginDrawing();
             ClearBackground(BLACK);
 
-            // 1. Game world
-            render_frame(&previous, &current, alpha);
-
-            // 2. Debug overlay: same snapshots and alpha as the world above
-            debug_draw(&debug, &previous, &current, alpha);
+            render_frame(view.previous, view.current, view.alpha);
+            debug_draw(&debug, view.previous, view.current, view.alpha, &history);
 
         EndDrawing();
     }
 
-    simulation_shutdown(&state);
+    app_shutdown(&app);
     CloseWindow();
 
     return 0;
@@ -1134,18 +1689,10 @@ typedef struct {
     float y;
 } RenderVec2;
 
-void
-render_init(
-void
-);
+void render_init(void);
+void render_shutdown(void);
 
-void
-render_shutdown(
-void
-);
-
-void
-render_frame(
+void render_frame(
 const RenderSnapshot *previous,
 const RenderSnapshot *current,
 float alpha
@@ -1153,27 +1700,25 @@ float alpha
 
 /* Interpolated positions. render_frame() and the debug overlay both use
  * these, so what is outlined is always exactly what is drawn. */
-RenderVec2
-render_player_position(
+RenderVec2 render_player_position(
 const RenderSnapshot *previous,
 const RenderSnapshot *current,
 float alpha
 );
 
-RenderVec2
-render_enemy_position(
+RenderVec2 render_enemy_position(
 const RenderSnapshot *previous,
 const RenderSnapshot *current,
 float alpha
 );
 
-/* Returns false if the ball slot is not active in `current`.
- * Interpolates only when the slot held the same generation previously. */
-bool
-render_ball_position(
+/* `index` is an index into current->balls[]. Returns false if out of range.
+ * The ball is interpolated only if the same SERIAL exists in `previous`;
+ * a freshly served ball is drawn where it is. */
+bool render_ball_position(
 const RenderSnapshot *previous,
 const RenderSnapshot *current,
-int slot,
+int index,
 float alpha,
 RenderVec2 *out
 );
@@ -1226,24 +1771,27 @@ bool
 render_ball_position(
   const RenderSnapshot *previous,
   const RenderSnapshot *current,
-  int slot,
+  int index,
   float alpha,
   RenderVec2 *out
 )
 {
-  if (slot < 0 || slot >= MAX_BALLS || !current->balls[slot].active)
+  if (index < 0 || index >= current->ball_count || index >= MAX_BALLS)
     return false;
 
-  const RenderBall *cur  = &current->balls[slot];
-  const RenderBall *prev = &previous->balls[slot];
+  const RenderBall *cur = &current->balls[index];
 
   out->x = cur->x;
   out->y = cur->y;
 
-  // Only interpolate if the slot was active previously AND belongs to the exact same generation
-  if (prev->active && prev->generation == cur->generation) {
-    out->x = lerp_float(prev->x, cur->x, alpha);
-    out->y = lerp_float(prev->y, cur->y, alpha);
+  // Match by serial: it is never reused, so a hit means "same ball".
+  int prev_count = previous->ball_count < MAX_BALLS ? previous->ball_count : MAX_BALLS;
+  for (int i = 0; i < prev_count; ++i) {
+    if (previous->balls[i].serial == cur->serial) {
+      out->x = lerp_float(previous->balls[i].x, cur->x, alpha);
+      out->y = lerp_float(previous->balls[i].y, cur->y, alpha);
+      break;
+    }
   }
 
   return true;
@@ -1308,7 +1856,7 @@ draw_balls(
   float alpha
 )
 {
-  for (int i = 0; i < MAX_BALLS; ++i) {
+  for (int i = 0; i < current->ball_count; ++i) {
     RenderVec2 pos;
     if (!render_ball_position(previous, current, i, alpha, &pos))
       continue;
@@ -1482,19 +2030,38 @@ render_frame(
 }
 
 
-
 simulation.h
 
 #ifndef SIMULATION_H
 #define SIMULATION_H
 
-#include "sim_types.h"
+/* The simulation is a closed box.
+ *
+ *   IN : a seed (sim_begin_match) and one TickInput per tick (sim_step)
+ *   OUT: its own state, plus events pushed into the queue it is given
+ *
+ * It owns no window, no clock, no platform RNG, no menus and no mode. */
 
-void simulation_init(SimulationState *state);
-void simulation_reset(SimulationState *state);
-void simulation_shutdown(SimulationState *state);
-void simulation_update(SimulationState *state, const GameInput *input, float dt);
-void simulation_reset_paddles(SimulationState *state);
+#include <stdint.h>
+#include "sim_types.h"
+#include "events.h"
+
+/* Starts a fresh match: destroys any previous Box2D world, wipes ALL state
+ * (so nothing leaks between matches), seeds the RNG, builds a new world and
+ * serves the first ball. `events` may be NULL. */
+void sim_begin_match(SimulationState *state, uint64_t seed, EventQueue *events);
+
+/* Advances exactly one fixed tick. No-op once state->match_over is set.
+ * `events` may be NULL. */
+void sim_step(SimulationState *state, const TickInput *input, float dt, EventQueue *events);
+
+/* Destroys the Box2D world. Safe on a never-initialized (zeroed) state. */
+void sim_shutdown(SimulationState *state);
+
+/* Hash of every constant that changes how a match plays out, plus a manual
+ * logic-version number. Stored in replays; a mismatch means old replays
+ * would not reproduce, so they are refused. */
+uint64_t sim_config_hash(void);
 
 #endif // SIMULATION_H
 
@@ -1503,40 +2070,42 @@ simulation.c
 
 #include "simulation.h"
 #include "entities.h"
+#include "hash.h"
 #include "log.h"
-#include "raylib.h"
 #include <math.h>
+#include <string.h>
 
+/* No raylib here on purpose: the simulation must not depend on the platform. */
 
-static void destroy_paddle_bodies(SimulationState* state) {
-    if (b2Body_IsValid(state->player_body)) {
-        b2DestroyBody(state->player_body);
-    }
-    state->player_body = b2_nullBodyId;
+/* Bump when the rules of the game change in a way that alters a match, so
+ * old replays are refused instead of silently diverging. */
+#define SIM_LOGIC_VERSION    1u
 
-    if (b2Body_IsValid(state->enemy_body)) {
-        b2DestroyBody(state->enemy_body);
-    }
-    state->enemy_body = b2_nullBodyId;
+#define SIM_SUBSTEPS         4
+#define SIM_PI               3.14159265358979f
+#define PADDLE_INSET         20.0f
+#define AI_DEADZONE_PX       6.0f
+#define SERVE_ANGLE_MIN_DEG  20.0f
+#define SERVE_ANGLE_MAX_DEG  40.0f
+
+/* Everything a system needs for one tick. */
+typedef struct {
+    SimulationState *s;
+    const TickInput *input;
+    float            dt;
+    EventQueue      *events;
+} StepCtx;
+
+static void emit(const StepCtx *c, SimEvent *e) {
+    e->tick         = c->s->tick;
+    e->score_player = c->s->player.score;
+    e->score_enemy  = c->s->enemy.score;
+    event_queue_push(c->events, e);
 }
 
-
-void simulation_reset_paddles(SimulationState *state) {
-    if (b2Body_IsValid(state->player_body)) {
-        b2Vec2 pos = pixel_to_meter(state->player.x + state->player.width * 0.5f,
-                                   state->player.y + state->player.height * 0.5f);
-        b2Body_SetTransform(state->player_body, pos, (b2Rot){1.0f, 0.0f});
-        b2Body_SetLinearVelocity(state->player_body, (b2Vec2){0.0f, 0.0f});
-    }
-
-    if (b2Body_IsValid(state->enemy_body)) {
-        b2Vec2 pos = pixel_to_meter(state->enemy.x + state->enemy.width * 0.5f,
-                                   state->enemy.y + state->enemy.height * 0.5f);
-        b2Body_SetTransform(state->enemy_body, pos, (b2Rot){1.0f, 0.0f});
-        b2Body_SetLinearVelocity(state->enemy_body, (b2Vec2){0.0f, 0.0f});
-    }
-}
-
+/* ============================================================
+ * BODY CREATION
+ * ============================================================ */
 
 static b2BodyId create_static_box(b2WorldId world, float x, float y, float width, float height) {
     if (!b2World_IsValid(world)) return b2_nullBodyId;
@@ -1544,14 +2113,14 @@ static b2BodyId create_static_box(b2WorldId world, float x, float y, float width
     b2BodyDef body_def = b2DefaultBodyDef();
     body_def.type = b2_staticBody;
     body_def.position = pixel_to_meter(x + width * 0.5f, y + height * 0.5f);
-    
+
     b2BodyId body = b2CreateBody(world, &body_def);
     if (!b2Body_IsValid(body)) return b2_nullBodyId;
 
     b2ShapeDef shape_def = b2DefaultShapeDef();
     shape_def.material.friction = 0.0f;
     shape_def.material.restitution = 1.0f;
-    
+
     b2Polygon box = b2MakeBox(PX_TO_M(width * 0.5f), PX_TO_M(height * 0.5f));
     b2ShapeId shape_id = b2CreatePolygonShape(body, &shape_def, &box);
 
@@ -1566,9 +2135,8 @@ static b2BodyId create_static_box(b2WorldId world, float x, float y, float width
 static b2BodyId create_paddle_body(b2WorldId world, const Paddle *paddle) {
     if (!b2World_IsValid(world)) return b2_nullBodyId;
 
-    // Safety check: ensure paddle dimensions are valid before creating Box2D shape
     if (paddle->width <= 0.0f || paddle->height <= 0.0f) {
-        LOG_SIMULATION("Cannot create paddle body: invalid dimensions (w: %.1f, h: %.1f)", 
+        LOG_SIMULATION("Cannot create paddle body: invalid dimensions (w: %.1f, h: %.1f)",
                        paddle->width, paddle->height);
         return b2_nullBodyId;
     }
@@ -1576,14 +2144,14 @@ static b2BodyId create_paddle_body(b2WorldId world, const Paddle *paddle) {
     b2BodyDef body_def = b2DefaultBodyDef();
     body_def.type = b2_kinematicBody;
     body_def.position = pixel_to_meter(paddle->x + paddle->width * 0.5f, paddle->y + paddle->height * 0.5f);
-    
+
     b2BodyId body = b2CreateBody(world, &body_def);
     if (!b2Body_IsValid(body)) return b2_nullBodyId;
 
     b2ShapeDef shape_def = b2DefaultShapeDef();
     shape_def.material.friction = 0.0f;
     shape_def.material.restitution = 1.0f;
-    
+
     b2Polygon box = b2MakeBox(PX_TO_M(paddle->width * 0.5f), PX_TO_M(paddle->height * 0.5f));
     b2ShapeId shape_id = b2CreatePolygonShape(body, &shape_def, &box);
 
@@ -1595,33 +2163,38 @@ static b2BodyId create_paddle_body(b2WorldId world, const Paddle *paddle) {
     return body;
 }
 
-
-static 
-void create_walls(b2WorldId world) 
-{
-  create_static_box(
-    world, 
-    COURT_LEFT,
-    COURT_TOP - 10.0f,
-    COURT_RIGHT - COURT_LEFT, 
-    10.0f);
-
-  create_static_box(
-    world,
-    COURT_LEFT,
-    COURT_BOTTOM,
-    COURT_RIGHT - COURT_LEFT,
-    10.0f);
+static void create_walls(b2WorldId world) {
+    create_static_box(world, COURT_LEFT, COURT_TOP - 10.0f,
+                      COURT_RIGHT - COURT_LEFT, 10.0f);
+    create_static_box(world, COURT_LEFT, COURT_BOTTOM,
+                      COURT_RIGHT - COURT_LEFT, 10.0f);
 }
 
-static 
-void sync_physics_to_state(SimulationState *state) 
-{
+static void init_paddles(SimulationState *s) {
+    float y = COURT_CENTER_Y - PADDLE_HEIGHT * 0.5f;
+
+    s->player = (Paddle){
+        .x = COURT_LEFT + PADDLE_INSET, .y = y,
+        .width = PADDLE_WIDTH, .height = PADDLE_HEIGHT,
+        .speed = PLAYER_SPEED, .score = 0
+    };
+    s->enemy = (Paddle){
+        .x = COURT_RIGHT - PADDLE_WIDTH - PADDLE_INSET, .y = y,
+        .width = PADDLE_WIDTH, .height = PADDLE_HEIGHT,
+        .speed = AI_SPEED, .score = 0
+    };
+}
+
+/* ============================================================
+ * SYSTEMS (fixed order: players, step, sync, collisions, scoring)
+ * ============================================================ */
+
+static void sync_physics_to_state(SimulationState *state) {
     if (b2Body_IsValid(state->player_body)) {
         b2Vec2 pos = b2Body_GetPosition(state->player_body);
         state->player.y = M_TO_PX(pos.y) - state->player.height * 0.5f;
     }
-    
+
     if (b2Body_IsValid(state->enemy_body)) {
         b2Vec2 pos = b2Body_GetPosition(state->enemy_body);
         state->enemy.y = M_TO_PX(pos.y) - state->enemy.height * 0.5f;
@@ -1641,206 +2214,830 @@ void sync_physics_to_state(SimulationState *state)
     }
 }
 
+/* Predictive clamp: cap velocity so the paddle lands exactly on the court
+ * bound after dt instead of overshooting. */
+static void drive_paddle(b2BodyId body, const Paddle *p, float velocity, float dt) {
+    if (!b2Body_IsValid(body)) return;
 
-static void player_system(
-    SimulationState *state,
-    const GameInput *input,
-    float dt) 
-{
+    if (dt > 0.0f) {
+        float next_y = p->y + velocity * dt;
+        float max_y  = COURT_BOTTOM - p->height;
+        if (next_y < COURT_TOP)      velocity = (COURT_TOP - p->y) / dt;
+        else if (next_y > max_y)     velocity = (max_y - p->y) / dt;
+    }
 
-    if (!b2Body_IsValid(state->player_body)) return;
+    b2Body_SetLinearVelocity(body, (b2Vec2){0.0f, PX_TO_M(velocity)});
+}
+
+static void player_system(StepCtx *c) {
+    SimulationState *s = c->s;
 
     float velocity = 0.0f;
-    if (input->up)   velocity -= state->player.speed;
-    if (input->down) velocity += state->player.speed;
+    if (c->input->up)   velocity -= s->player.speed;
+    if (c->input->down) velocity += s->player.speed;
 
-    // Predictive velocity clamping: 
-    // cap velocity so paddle lands exactly on the bound after dt
-    if (dt > 0.0f) {
-        float next_y = state->player.y + velocity * dt;
-        if (next_y < COURT_TOP) {
-            velocity = (COURT_TOP - state->player.y) / dt;
-        } else if (next_y > COURT_BOTTOM - state->player.height) {
-            velocity = (COURT_BOTTOM - state->player.height - state->player.y) / dt;
-        }
-    }
-
-    b2Body_SetLinearVelocity(state->player_body, (b2Vec2){0.0f, PX_TO_M(velocity)});
+    drive_paddle(s->player_body, &s->player, velocity, c->dt);
 }
 
-static void enemy_system(SimulationState *state, float dt) {
-    if (!b2Body_IsValid(state->enemy_body)) return;
+static void enemy_system(StepCtx *c) {
+    SimulationState *s = c->s;
+    BallPool *balls = &s->balls;
 
-    BallPool *balls = &state->balls;
-
-    float best_x = -100000.0f;
-    EntityHandle best_target = INVALID_HANDLE;
+    /* Target: the ball furthest to the right. Ties go to the LOWER serial,
+     * so the choice never depends on how the pool is laid out. */
+    int      best = -1;
+    float    best_x = 0.0f;
+    uint32_t best_serial = 0;
 
     for (uint32_t d = 0; d < balls->count; ++d) {
-        if (balls->x[d] > best_x) {
-            best_x = balls->x[d];
-            uint32_t slot_idx = balls->dense_to_sparse[d];
-            best_target = (EntityHandle){
-                .index = slot_idx,
-                .generation = balls->slots[slot_idx].generation
-            };
+        float    x = balls->x[d];
+        uint32_t serial = balls->serial[d];
+        if (best < 0 || x > best_x || (x == best_x && serial < best_serial)) {
+            best = (int)d;
+            best_x = x;
+            best_serial = serial;
         }
     }
-    state->ai_target = best_target;
 
-    if (!ball_is_valid(balls, state->ai_target)) {
-        b2Body_SetLinearVelocity(state->enemy_body, (b2Vec2){0.0f, 0.0f});
-    } else {
-        uint32_t target_dense = balls->slots[state->ai_target.index].dense_idx;
-        float ball_y   = balls->y[target_dense] + BALL_SIZE * 0.5f;
-        float paddle_y = state->enemy.y + state->enemy.height * 0.5f;
+    float velocity = 0.0f;
+    if (best >= 0) {
+        float ball_y   = balls->y[best] + BALL_SIZE * 0.5f;
+        float paddle_y = s->enemy.y + s->enemy.height * 0.5f;
         float diff     = ball_y - paddle_y;
-        float velocity = 0.0f;
 
-        if (fabsf(diff) > 6.0f) {
-            velocity = (diff < 0.0f) ? -state->enemy.speed : state->enemy.speed;
+        if (fabsf(diff) > AI_DEADZONE_PX)
+            velocity = (diff < 0.0f) ? -s->enemy.speed : s->enemy.speed;
+    }
+
+    drive_paddle(s->enemy_body, &s->enemy, velocity, c->dt);
+}
+
+/* Paddle/wall hits are INFERRED from velocity sign flips across the physics
+ * step (the paddle is a flat reflector on the x axis, the walls on the y
+ * axis). x-flip => paddle hit, otherwise y-flip => wall hit. A ball skimming
+ * a paddle's top or bottom edge therefore reports as a wall hit. */
+static void collision_events(StepCtx *c, const float *prev_vx, const float *prev_vy) {
+    BallPool *b = &c->s->balls;
+
+    uint32_t order[MAX_BALLS];
+    uint32_t n = balls_sorted_by_serial(b, order);
+
+    for (uint32_t k = 0; k < n; ++k) {
+        uint32_t d = order[k];
+        float cx = b->x[d] + BALL_SIZE * 0.5f;
+        float cy = b->y[d] + BALL_SIZE * 0.5f;
+
+        bool flip_x = (prev_vx[d] * b->vx[d]) < 0.0f;
+        bool flip_y = (prev_vy[d] * b->vy[d]) < 0.0f;
+
+        if (flip_x) {
+            SimEvent e = {
+                .type = EVT_BALL_HIT_PADDLE, .ball_serial = b->serial[d],
+                .x = cx, .y = cy, .vx = b->vx[d], .vy = b->vy[d],
+                .side = (cx < COURT_CENTER_X) ? SIDE_PLAYER : SIDE_ENEMY
+            };
+            emit(c, &e);
+        } else if (flip_y) {
+            SimEvent e = {
+                .type = EVT_BALL_HIT_WALL, .ball_serial = b->serial[d],
+                .x = cx, .y = cy, .vx = b->vx[d], .vy = b->vy[d],
+                .wall = (cy < COURT_CENTER_Y) ? WALL_TOP : WALL_BOTTOM
+            };
+            emit(c, &e);
         }
-
-        // Predictive velocity clamping for AI
-        if (dt > 0.0f) {
-            float next_y = state->enemy.y + velocity * dt;
-            if (next_y < COURT_TOP) {
-                velocity = (COURT_TOP - state->enemy.y) / dt;
-            } else if (next_y > COURT_BOTTOM - state->enemy.height) {
-                velocity = (COURT_BOTTOM - state->enemy.height - state->enemy.y) / dt;
-            }
-        }
-
-        b2Body_SetLinearVelocity(state->enemy_body, (b2Vec2){0.0f, PX_TO_M(velocity)});
     }
 }
 
-static void scoring_system(SimulationState *state) {
-    BallPool *balls = &state->balls;
+static void serve_ball(StepCtx *c, float direction) {
+    SimulationState *s = c->s;
 
-    for (int d = (int)balls->count - 1; d >= 0; --d) {
-        float px = balls->x[d];
-        float py = balls->y[d];
+    /* One RNG draw per statement: argument evaluation order is unspecified
+     * in C, so draws are never nested inside a call. */
+    float angle_deg = rng_float_range(&s->rng, SERVE_ANGLE_MIN_DEG, SERVE_ANGLE_MAX_DEG);
+    float vsign     = (rng_next_u32(&s->rng) & 1u) ? 1.0f : -1.0f;
 
-        uint32_t slot_idx = balls->dense_to_sparse[d];
-        EntityHandle handle = {
-            .index = slot_idx,
-            .generation = balls->slots[slot_idx].generation
+    float angle = angle_deg * (SIM_PI / 180.0f);
+    float vx = cosf(angle) * INITIAL_BALL_SPEED * direction;
+    float vy = sinf(angle) * INITIAL_BALL_SPEED * vsign;
+
+    EntityHandle h = ball_create(&s->balls, s->world,
+                                 COURT_CENTER_X - BALL_SIZE * 0.5f,
+                                 COURT_CENTER_Y - BALL_SIZE * 0.5f,
+                                 vx, vy);
+    if (!ball_is_valid(&s->balls, h)) return;
+
+    uint32_t dense = s->balls.slots[h.index].dense_idx;
+    SimEvent e = {
+        .type = EVT_BALL_SERVED, .ball_serial = s->balls.serial[dense],
+        .x = COURT_CENTER_X, .y = COURT_CENTER_Y, .vx = vx, .vy = vy
+    };
+    emit(c, &e);
+}
+
+typedef struct {
+    EntityHandle handle;
+    uint32_t     serial;
+    Side         scorer;
+    float        x, y, vx, vy;
+} ScoreHit;
+
+static void scoring_system(StepCtx *c) {
+    SimulationState *s = c->s;
+    BallPool *b = &s->balls;
+
+    /* Pass 1: find balls that left the court, in serial order. Dense
+     * indices are still valid here (nothing has been destroyed yet). */
+    ScoreHit hits[MAX_BALLS];
+    uint32_t hit_count = 0;
+
+    uint32_t order[MAX_BALLS];
+    uint32_t n = balls_sorted_by_serial(b, order);
+
+    for (uint32_t k = 0; k < n; ++k) {
+        uint32_t d = order[k];
+        float px = b->x[d];
+
+        bool left  = px < COURT_LEFT - BALL_SIZE;
+        bool right = px > COURT_RIGHT;
+        if (!left && !right) continue;
+
+        uint32_t slot = b->dense_to_sparse[d];
+        hits[hit_count++] = (ScoreHit){
+            .handle = { .index = slot, .generation = b->slots[slot].generation },
+            .serial = b->serial[d],
+            .scorer = left ? SIDE_ENEMY : SIDE_PLAYER,
+            .x = px + BALL_SIZE * 0.5f,
+            .y = b->y[d] + BALL_SIZE * 0.5f,
+            .vx = b->vx[d],
+            .vy = b->vy[d]
         };
-
-        if (px < COURT_LEFT - BALL_SIZE) {
-            state->enemy.score++;
-            for (int p = 0; p < PARTICLE_COUNT_ON_SCORE; ++p) {
-                float angle = (float)GetRandomValue(0, 359) * (PI / 180.0f);
-                float speed = (float)GetRandomValue(PARTICLE_MIN_SPEED, PARTICLE_MAX_SPEED);
-                float lifetime = (float)GetRandomValue(PARTICLE_MIN_LIFETIME, PARTICLE_MAX_LIFETIME) / 1000.0f;
-                float size = (float)GetRandomValue(PARTICLE_MIN_SIZE, PARTICLE_MAX_SIZE);
-                particles_spawn(&state->particles, px, py, cosf(angle) * speed, sinf(angle) * speed, lifetime, size);
-            }
-            ball_destroy(balls, handle);
-        }
-        else if (px > COURT_RIGHT) {
-            state->player.score++;
-            for (int p = 0; p < PARTICLE_COUNT_ON_SCORE; ++p) {
-                float angle = (float)GetRandomValue(0, 359) * (PI / 180.0f);
-                float speed = (float)GetRandomValue(PARTICLE_MIN_SPEED, PARTICLE_MAX_SPEED);
-                float lifetime = (float)GetRandomValue(PARTICLE_MIN_LIFETIME, PARTICLE_MAX_LIFETIME) / 1000.0f;
-                float size = (float)GetRandomValue(PARTICLE_MIN_SIZE, PARTICLE_MAX_SIZE);
-                particles_spawn(&state->particles, px, py, cosf(angle) * speed, sinf(angle) * speed, lifetime, size);
-            }
-            ball_destroy(balls, handle);
-        }
     }
 
-    if (state->player.score >= WINNING_SCORE) {
-        state->mode = GAME_OVER;
-        state->winner = 1;
-        return;
-    } else if (state->enemy.score >= WINNING_SCORE) {
-        state->mode = GAME_OVER;
-        state->winner = 2;
+    /* Pass 2: apply them. Handles survive swap-remove; dense indices do not. */
+    for (uint32_t i = 0; i < hit_count; ++i) {
+        const ScoreHit *h = &hits[i];
+
+        if (h->scorer == SIDE_PLAYER) { s->player.score++; s->last_scorer = 1; }
+        else                          { s->enemy.score++;  s->last_scorer = 2; }
+
+        SimEvent e = {
+            .type = EVT_POINT_SCORED, .ball_serial = h->serial,
+            .x = h->x, .y = h->y, .vx = h->vx, .vy = h->vy,
+            .side = h->scorer
+        };
+        emit(c, &e);
+
+        ball_destroy(b, h->handle);
+    }
+
+    int winner = 0;
+    if (s->player.score >= WINNING_SCORE)     winner = 1;
+    else if (s->enemy.score >= WINNING_SCORE) winner = 2;
+
+    if (winner != 0) {
+        s->match_over = true;
+        s->winner = winner;
+
+        SimEvent e = {
+            .type = EVT_MATCH_ENDED,
+            .side = (winner == 1) ? SIDE_PLAYER : SIDE_ENEMY
+        };
+        emit(c, &e);
         return;
     }
 
-    if (balls->count == 0) {
-        float direction = (state->player.score > state->enemy.score) ? -1.0f : 1.0f;
-        ball_create(
-            balls,
-            state->world,
-            SCREEN_WIDTH / 2.0f - BALL_SIZE / 2.0f,
-            SCREEN_HEIGHT / 2.0f - BALL_SIZE / 2.0f,
-            direction
-        );
+    if (b->count == 0) {
+        /* Serve toward the side that just conceded. */
+        serve_ball(c, (s->last_scorer == 1) ? 1.0f : -1.0f);
     }
 }
 
-void simulation_init(SimulationState *state) {
+/* ============================================================
+ * PUBLIC API
+ * ============================================================ */
+
+void sim_shutdown(SimulationState *state) {
+    if (b2World_IsValid(state->world)) {
+        b2DestroyWorld(state->world);   /* destroys every body in it */
+    }
+    state->world       = b2_nullWorldId;
+    state->player_body = b2_nullBodyId;
+    state->enemy_body  = b2_nullBodyId;
+    ball_pool_init(&state->balls);
+}
+
+void sim_begin_match(SimulationState *state, uint64_t seed, EventQueue *events) {
+    sim_shutdown(state);
+
+    /* Wipe EVERYTHING. A match is a pure function of (seed, inputs), so no
+     * field may survive from the previous one. */
+    memset(state, 0, sizeof(*state));
+
+    state->seed = seed;
+    rng_seed(&state->rng, seed, 1);
+
+    init_paddles(state);
+    ball_pool_init(&state->balls);
+    powerups_clear(&state->powerups);
+
     b2WorldDef world_def = b2DefaultWorldDef();
     world_def.gravity    = (b2Vec2){0.0f, 0.0f};
-
     state->world         = b2CreateWorld(&world_def);
-    state->player_body   = b2_nullBodyId;
-    state->enemy_body    = b2_nullBodyId;
 
     create_walls(state->world);
+    state->player_body = create_paddle_body(state->world, &state->player);
+    state->enemy_body  = create_paddle_body(state->world, &state->enemy);
 
-    // Explicitly create paddle bodies at startup
-    state->player_body   = create_paddle_body(state->world, &state->player);
-    state->enemy_body    = create_paddle_body(state->world, &state->enemy);
+    LOG_SIMULATION("match begin: seed=%llu", (unsigned long long)seed);
 
-    LOG_SIMULATION("Box2D initialized");
+    StepCtx ctx = { .s = state, .input = NULL, .dt = 0.0f, .events = events };
+
+    SimEvent e = { .type = EVT_MATCH_STARTED };
+    emit(&ctx, &e);
+
+    serve_ball(&ctx, 1.0f);
 }
 
-void simulation_reset(SimulationState *state) {
-    if (!b2World_IsValid(state->world)) return;
-    simulation_reset_paddles(state);  
-    balls_clear(&state->balls);
-}
+void sim_step(SimulationState *state, const TickInput *input, float dt, EventQueue *events) {
+    if (state->match_over || !b2World_IsValid(state->world)) return;
 
-void simulation_shutdown(SimulationState *state) {
-    if (!b2World_IsValid(state->world)) return;
+    StepCtx ctx = { .s = state, .input = input, .dt = dt, .events = events };
 
-    destroy_paddle_bodies(state);
-    balls_clear(&state->balls);
+    player_system(&ctx);
+    enemy_system(&ctx);
 
-    if (b2World_IsValid(state->world)) {
-        b2DestroyWorld(state->world);
+    /* Remember each ball's velocity so collisions can be inferred. Dense
+     * indices do not change during the physics step. */
+    float prev_vx[MAX_BALLS], prev_vy[MAX_BALLS];
+    for (uint32_t d = 0; d < state->balls.count; ++d) {
+        prev_vx[d] = state->balls.vx[d];
+        prev_vy[d] = state->balls.vy[d];
     }
 
-    state->world = b2_nullWorldId;
-}
-
-void simulation_update(
-    SimulationState *state,
-    const GameInput *input,
-    float dt) 
-{
-    if (!b2World_IsValid(state->world)) return;
-
-    if (!b2Body_IsValid(state->player_body))
-        state->player_body = create_paddle_body(state->world, &state->player);
-
-    if (!b2Body_IsValid(state->enemy_body))
-        state->enemy_body = create_paddle_body(state->world, &state->enemy);
-
-    player_system(state, input, dt);
-    enemy_system(state, dt);
-
-    b2World_Step(state->world, dt, 4);
+    b2World_Step(state->world, dt, SIM_SUBSTEPS);
 
     sync_physics_to_state(state);
-    scoring_system(state);
-    
-    particles_update(&state->particles, dt);
+    collision_events(&ctx, prev_vx, prev_vy);
+    scoring_system(&ctx);
     powerups_update(&state->powerups, dt);
+
+    state->tick++;
+}
+
+uint64_t sim_config_hash(void) {
+    uint64_t h = hash_begin();
+
+    h = hash_u32(h, SIM_LOGIC_VERSION);
+    h = hash_u32(h, (uint32_t)SIM_HZ);
+    h = hash_u32(h, (uint32_t)SIM_SUBSTEPS);
+    h = hash_u32(h, (uint32_t)MAX_BALLS);
+    h = hash_u32(h, (uint32_t)WINNING_SCORE);
+
+    h = hash_f32(h, COURT_LEFT);
+    h = hash_f32(h, COURT_RIGHT);
+    h = hash_f32(h, COURT_TOP);
+    h = hash_f32(h, COURT_BOTTOM);
+    h = hash_f32(h, PADDLE_WIDTH);
+    h = hash_f32(h, PADDLE_HEIGHT);
+    h = hash_f32(h, PADDLE_INSET);
+    h = hash_f32(h, PLAYER_SPEED);
+    h = hash_f32(h, AI_SPEED);
+    h = hash_f32(h, AI_DEADZONE_PX);
+    h = hash_f32(h, BALL_SIZE);
+    h = hash_f32(h, INITIAL_BALL_SPEED);
+    h = hash_f32(h, SERVE_ANGLE_MIN_DEG);
+    h = hash_f32(h, SERVE_ANGLE_MAX_DEG);
+
+    return h;
 }
 
 
+test_determinism.c
 
+/* Headless tests for the deterministic core. No window, no raylib.
+ *
+ *   make fake    -> runs against tests/fake_box2d (validates the PLUMBING)
+ *   make real    -> runs against real Box2D       (validates Box2D determinism)
+ *
+ * The test source is identical in both cases. */
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include "app.h"
+#include "simulation.h"
+#include "checksum.h"
+#include "events.h"
+#include "replay.h"
+#include "input_source.h"
+#include "fx.h"
+#include "entities.h"
+#include "hash.h"
 
+static int g_checks = 0, g_failures = 0;
 
+#define CHECK(cond, ...) do { \
+    g_checks++; \
+    if (!(cond)) { g_failures++; printf("    FAIL %s:%d: ", __FILE__, __LINE__); \
+                   printf(__VA_ARGS__); printf("\n"); } \
+} while (0)
+
+#define TMP_REPLAY "/tmp/pong_test.replay"
+#define MAX_TICKS  300000u
+
+/* ------------------------------------------------------------------ */
+/* Deterministic scripted "player" (independent of the sim's RNG)      */
+/* ------------------------------------------------------------------ */
+
+static TickInput script_input(uint32_t tick, uint32_t salt) {
+    uint32_t h = (tick / 40u + salt) * 2654435761u;
+    uint32_t phase = (h >> 13) % 4u;
+    return (TickInput){ phase == 0u, phase == 1u };
+}
+
+/* ------------------------------------------------------------------ */
+/* Headless runner: same per-tick pipeline as app.c                    */
+/* ------------------------------------------------------------------ */
+
+typedef struct {
+    uint64_t *trace;          /* checksum after each tick */
+    uint32_t  ticks;
+    uint64_t  event_hash;     /* hash of EVERY event, in order */
+    uint64_t  fx_hash;
+    uint64_t  final_checksum;
+    uint32_t  event_count;
+    uint32_t  paddle_hits, wall_hits, scores;
+    bool      match_over;
+    int       winner, score_p, score_e;
+} RunResult;
+
+static uint64_t hash_event(uint64_t h, const SimEvent *e) {
+    h = hash_u32(h, e->tick);
+    h = hash_u32(h, (uint32_t)e->type);
+    h = hash_u32(h, e->ball_serial);
+    h = hash_f32(h, e->x);  h = hash_f32(h, e->y);
+    h = hash_f32(h, e->vx); h = hash_f32(h, e->vy);
+    h = hash_u32(h, (uint32_t)e->side);
+    h = hash_u32(h, (uint32_t)e->wall);
+    h = hash_u32(h, (uint32_t)e->score_player);
+    return hash_u32(h, (uint32_t)e->score_enemy);
+}
+
+static void drain(const EventQueue *q, EventCursor *c, RunResult *r) {
+    SimEvent e;
+    while (event_cursor_read(q, c, &e)) {
+        r->event_hash = hash_event(r->event_hash, &e);
+        r->event_count++;
+        if (e.type == EVT_BALL_HIT_PADDLE) r->paddle_hits++;
+        if (e.type == EVT_BALL_HIT_WALL)   r->wall_hits++;
+        if (e.type == EVT_POINT_SCORED)    r->scores++;
+    }
+}
+
+/* replay_in != NULL: inputs come from it; otherwise from script_input(salt).
+ * record_out != NULL: record the run the way the app does.
+ * stop_at: stop after this many ticks (UINT32_MAX = run to the end). */
+static void run_headless(uint64_t seed, uint32_t salt, const ReplayData *replay_in,
+                         ReplayData *record_out, uint32_t stop_at, RunResult *r)
+{
+    memset(r, 0, sizeof *r);
+    r->trace      = malloc(sizeof(uint64_t) * (MAX_TICKS + 1));
+    r->event_hash = hash_begin();
+    r->fx_hash    = hash_begin();
+
+    SimulationState *s  = calloc(1, sizeof *s);
+    EventQueue      *q  = calloc(1, sizeof *q);
+    Fx              *fx = calloc(1, sizeof *fx);
+
+    InputSource src;
+    input_source_use_live(&src);
+    if (replay_in) input_source_use_replay(&src, replay_in);
+
+    event_queue_clear(q);
+    fx_reset(fx, seed, q);
+    sim_begin_match(s, seed, q);
+    fx_consume_events(fx, q);
+
+    EventCursor ec = { 0, 0 };
+    drain(q, &ec, r);
+
+    if (record_out) replay_begin(record_out, seed, sim_config_hash());
+
+    while (!s->match_over && s->tick < MAX_TICKS && s->tick < stop_at) {
+        uint32_t tick = s->tick;
+
+        TickInput in = replay_in ? input_source_at(&src, tick) : script_input(tick, salt);
+
+        if (record_out) {
+            if (tick % REPLAY_CHECKPOINT_INTERVAL == 0u)
+                replay_record_checkpoint(record_out, tick, sim_checksum(s));
+            replay_record_tick(record_out, tick, in);
+        }
+
+        sim_step(s, &in, (float)SIM_DT, q);
+        fx_consume_events(fx, q);
+        fx_update(fx, (float)SIM_DT);
+        drain(q, &ec, r);
+
+        r->trace[r->ticks++] = sim_checksum(s);
+    }
+
+    if (record_out) replay_finish(record_out, s->tick, sim_checksum(s));
+
+    for (int i = 0; i < MAX_PARTICLES; ++i) {
+        r->fx_hash = hash_u32(r->fx_hash, (uint32_t)fx->particles.active[i]);
+        if (fx->particles.active[i]) {
+            r->fx_hash = hash_f32(r->fx_hash, fx->particles.x[i]);
+            r->fx_hash = hash_f32(r->fx_hash, fx->particles.y[i]);
+        }
+    }
+
+    r->final_checksum = sim_checksum(s);
+    r->match_over = s->match_over;
+    r->winner  = s->winner;
+    r->score_p = s->player.score;
+    r->score_e = s->enemy.score;
+
+    sim_shutdown(s);
+    free(s); free(q); free(fx);
+}
+
+static void run_free(RunResult *r) { free(r->trace); r->trace = NULL; }
+
+static bool traces_equal(const RunResult *a, const RunResult *b) {
+    return a->ticks == b->ticks &&
+           memcmp(a->trace, b->trace, sizeof(uint64_t) * a->ticks) == 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tests                                                               */
+/* ------------------------------------------------------------------ */
+
+static void test_same_seed_same_match(void) {
+    printf("[1] same seed + same inputs => identical match\n");
+    RunResult a, b;
+    run_headless(12345, 7, NULL, NULL, UINT32_MAX, &a);
+    run_headless(12345, 7, NULL, NULL, UINT32_MAX, &b);
+
+    printf("    match: %u ticks, score %d-%d, %u events (%u paddle, %u wall, %u scores)\n",
+           a.ticks, a.score_p, a.score_e, a.event_count, a.paddle_hits, a.wall_hits, a.scores);
+
+    CHECK(a.match_over, "match did not finish within %u ticks", MAX_TICKS);
+    CHECK(a.ticks > 0, "no ticks ran");
+    CHECK(a.paddle_hits > 0, "no paddle-hit events were produced");
+    CHECK(a.scores > 0, "no score events were produced");
+    CHECK(traces_equal(&a, &b), "per-tick checksum traces differ");
+    CHECK(a.event_hash == b.event_hash, "event streams differ");
+    CHECK(a.fx_hash == b.fx_hash, "particle state differs");
+    CHECK(a.final_checksum == b.final_checksum, "final checksum differs");
+    run_free(&a); run_free(&b);
+}
+
+static void test_inputs_and_seed_matter(void) {
+    printf("[2] a different seed or different inputs => a different match\n");
+    RunResult a, b, c;
+    run_headless(12345, 7, NULL, NULL, 3000, &a);
+    run_headless(54321, 7, NULL, NULL, 3000, &b);   /* other seed  */
+    run_headless(12345, 8, NULL, NULL, 3000, &c);   /* other input */
+
+    CHECK(!traces_equal(&a, &b), "a different seed produced an identical trace");
+    CHECK(!traces_equal(&a, &c), "different input produced an identical trace");
+    run_free(&a); run_free(&b); run_free(&c);
+}
+
+static void test_record_save_load_replay(void) {
+    printf("[3] record -> save -> load -> replay reproduces the match exactly\n");
+    RunResult live, replayed;
+    ReplayData rec, loaded;
+    replay_init(&rec); replay_init(&loaded);
+
+    run_headless(2024, 3, NULL, &rec, UINT32_MAX, &live);
+    CHECK(rec.complete, "recording not marked complete");
+    CHECK(rec.tick_count == live.ticks, "recorded tick_count %u != %u", rec.tick_count, live.ticks);
+    CHECK(replay_save(&rec, TMP_REPLAY), "save failed");
+    CHECK(replay_load(&loaded, TMP_REPLAY), "load failed");
+
+    CHECK(loaded.seed == rec.seed && loaded.tick_count == rec.tick_count &&
+          loaded.change_count == rec.change_count &&
+          loaded.checkpoint_count == rec.checkpoint_count &&
+          loaded.final_checksum == rec.final_checksum &&
+          loaded.config_hash == rec.config_hash, "loaded header/body differs from saved");
+
+    run_headless(loaded.seed, 0, &loaded, NULL, UINT32_MAX, &replayed);
+    CHECK(traces_equal(&live, &replayed), "replayed trace differs from the live match");
+    CHECK(live.event_hash == replayed.event_hash, "replayed events differ");
+    CHECK(replayed.final_checksum == loaded.final_checksum, "final checksum mismatch");
+
+    /* checkpoint at tick T is the state BEFORE tick T == trace[T-1] */
+    uint64_t cp;
+    CHECK(replay_checkpoint_for(&loaded, 0, &cp), "no checkpoint at tick 0");
+    if (live.ticks > REPLAY_CHECKPOINT_INTERVAL) {
+        CHECK(replay_checkpoint_for(&loaded, REPLAY_CHECKPOINT_INTERVAL, &cp) &&
+              cp == live.trace[REPLAY_CHECKPOINT_INTERVAL - 1],
+              "checkpoint at tick %u does not match the trace", REPLAY_CHECKPOINT_INTERVAL);
+    }
+
+    printf("    replay: %u ticks, %u input changes, %u checkpoints\n",
+           loaded.tick_count, loaded.change_count, loaded.checkpoint_count);
+
+    run_free(&live); run_free(&replayed);
+    replay_free(&rec); replay_free(&loaded);
+}
+
+static void test_seek_by_resimulation(void) {
+    printf("[4] seeking = re-simulating from tick 0 lands on the same state\n");
+    RunResult live, seek;
+    ReplayData rec;
+    replay_init(&rec);
+    run_headless(99, 5, NULL, &rec, UINT32_MAX, &live);
+
+    const uint32_t targets[] = { 1, 119, 120, 777, live.ticks / 2, live.ticks - 1 };
+    for (size_t i = 0; i < sizeof targets / sizeof targets[0]; ++i) {
+        uint32_t t = targets[i];
+        if (t == 0 || t > live.ticks) continue;
+        run_headless(rec.seed, 0, &rec, NULL, t, &seek);
+        CHECK(seek.ticks == t, "seek to %u ran %u ticks", t, seek.ticks);
+        CHECK(seek.final_checksum == live.trace[t - 1],
+              "seek to tick %u: state differs from the straight run", t);
+        run_free(&seek);
+    }
+    run_free(&live);
+    replay_free(&rec);
+}
+
+static void test_corrupt_replays_rejected(void) {
+    printf("[5] corrupt or truncated replay files are rejected safely\n");
+    ReplayData rec, keep, probe;
+    RunResult r;
+    replay_init(&rec); replay_init(&keep); replay_init(&probe);
+
+    run_headless(7, 1, NULL, &rec, UINT32_MAX, &r);
+    run_free(&r);
+    CHECK(replay_save(&rec, TMP_REPLAY), "save failed");
+    CHECK(replay_load(&keep, TMP_REPLAY), "load failed");
+
+    /* read the good file */
+    FILE *f = fopen(TMP_REPLAY, "rb");
+    fseek(f, 0, SEEK_END); long size = ftell(f); fseek(f, 0, SEEK_SET);
+    unsigned char *buf = malloc((size_t)size);
+    CHECK(fread(buf, 1, (size_t)size, f) == (size_t)size, "read back failed");
+    fclose(f);
+
+    const char *bad = "/tmp/pong_test_bad.replay";
+    struct { const char *name; long len; int flip_at; } cases[] = {
+        { "truncated to half",      size / 2, -1 },
+        { "truncated to header",    20,       -1 },
+        { "bad magic",              size,      0 },
+        { "bad version",            size,      8 },
+    };
+    for (size_t i = 0; i < sizeof cases / sizeof cases[0]; ++i) {
+        unsigned char *copy = malloc((size_t)size);
+        memcpy(copy, buf, (size_t)size);
+        if (cases[i].flip_at >= 0) copy[cases[i].flip_at] ^= 0xFF;
+        f = fopen(bad, "wb"); fwrite(copy, 1, (size_t)cases[i].len, f); fclose(f);
+        free(copy);
+
+        bool ok = replay_load(&keep, bad);
+        CHECK(!ok, "'%s' was accepted", cases[i].name);
+        /* a failed load must leave existing data untouched */
+        CHECK(keep.seed == rec.seed && keep.tick_count == rec.tick_count,
+              "failed load ('%s') damaged the existing replay", cases[i].name);
+    }
+    CHECK(!replay_load(&probe, "/tmp/definitely/not/here.replay"), "missing file accepted");
+
+    free(buf);
+    replay_free(&rec); replay_free(&keep); replay_free(&probe);
+}
+
+static void test_event_ring(void) {
+    printf("[6] event ring: cursors, overwrite-oldest, clear\n");
+    EventQueue *q = calloc(1, sizeof *q);
+    EventCursor slow = {0, 0}, fast = {0, 0};
+
+    for (uint32_t i = 0; i < 300; ++i) {
+        SimEvent e = { .tick = i, .type = EVT_BALL_HIT_WALL };
+        event_queue_push(q, &e);
+        SimEvent out;
+        CHECK(event_cursor_read(q, &fast, &out) && out.tick == i, "fast consumer missed event %u", i);
+    }
+    CHECK(fast.lost == 0, "fast consumer reports %u lost", fast.lost);
+
+    SimEvent out;
+    uint32_t read = 0, first_tick = 0;
+    while (event_cursor_read(q, &slow, &out)) { if (read == 0) first_tick = out.tick; read++; }
+    CHECK(read == EVENT_RING_CAPACITY, "slow consumer read %u, expected %u", read, EVENT_RING_CAPACITY);
+    CHECK(slow.lost == 300u - EVENT_RING_CAPACITY, "slow consumer lost %u, expected %u",
+          slow.lost, 300u - EVENT_RING_CAPACITY);
+    CHECK(first_tick == 300u - EVENT_RING_CAPACITY, "slow consumer resumed at tick %u", first_tick);
+
+    CHECK(event_queue_recent(q, 0, &out) && out.tick == 299, "newest event wrong");
+    CHECK(event_queue_recent(q, 255, &out) && out.tick == 44, "oldest retained event wrong");
+    CHECK(!event_queue_recent(q, 256, &out), "recent() reached past the ring");
+
+    event_queue_clear(q);   /* cursors are now ahead of head: must self-heal */
+    CHECK(!event_cursor_read(q, &slow, &out), "stale cursor read from an empty queue");
+    SimEvent e = { .tick = 1000, .type = EVT_POINT_SCORED };
+    event_queue_push(q, &e);
+    CHECK(event_cursor_read(q, &slow, &out) && out.tick == 1000, "cursor did not recover after clear");
+
+    free(q);
+}
+
+static void test_pool_reset_and_serials(void) {
+    printf("[7] ball pool: serials never reused, per-match reset is complete\n");
+    b2WorldDef wd = b2DefaultWorldDef();
+    b2WorldId w = b2CreateWorld(&wd);
+    BallPool *p = calloc(1, sizeof *p);
+    ball_pool_init(p);
+
+    EntityHandle h1 = ball_create(p, w, 100, 100, 10, 10);
+    EntityHandle h2 = ball_create(p, w, 200, 100, 10, 10);
+    CHECK(ball_is_valid(p, h1) && ball_is_valid(p, h2), "balls not created");
+    CHECK(p->serial[p->slots[h1.index].dense_idx] == 1, "first serial != 1");
+    CHECK(p->serial[p->slots[h2.index].dense_idx] == 2, "second serial != 2");
+
+    ball_destroy(p, h1);
+    CHECK(!ball_is_valid(p, h1), "stale handle still valid after destroy");
+    CHECK(ball_is_valid(p, h2), "survivor invalidated by swap-remove");
+    CHECK(p->serial[p->slots[h2.index].dense_idx] == 2, "serial lost in swap-remove");
+
+    EntityHandle h3 = ball_create(p, w, 300, 100, 10, 10);
+    CHECK(h3.index == h1.index, "freed slot was not reused");
+    CHECK(h3.generation == h1.generation + 1, "generation not bumped on reuse");
+    CHECK(!ball_is_valid(p, h1), "stale handle revalidated by slot reuse (ABA)");
+    CHECK(p->serial[p->slots[h3.index].dense_idx] == 3, "serial reused");
+
+    uint32_t order[MAX_BALLS];
+    uint32_t n = balls_sorted_by_serial(p, order);
+    CHECK(n == 2 && p->serial[order[0]] < p->serial[order[1]], "serial order wrong");
+
+    balls_clear(p);   /* full reset */
+    CHECK(p->count == 0 && p->next_serial == 1, "reset left count/serial behind");
+    bool all_gen1 = true;
+    for (uint32_t i = 0; i < MAX_BALLS; ++i) if (p->slots[i].generation != 1) all_gen1 = false;
+    CHECK(all_gen1, "generations were not reset");
+    CHECK(!ball_is_valid(p, h2) && !ball_is_valid(p, h3), "old handles survived the reset");
+
+    free(p);
+    b2DestroyWorld(w);
+}
+
+/* ---- App layer, end to end ------------------------------------------- */
+
+static GameInput frame_input(const App *app, uint32_t salt) {
+    TickInput t = script_input(app->sim.tick, salt);
+    GameInput g;
+    memset(&g, 0, sizeof g);
+    g.up = t.up; g.down = t.down;
+    return g;
+}
+
+static bool run_frames_until_over(App *app, uint32_t salt, uint32_t max_frames) {
+    for (uint32_t f = 0; f < max_frames && app->mode != GAME_OVER; ++f) {
+        GameInput g = frame_input(app, salt);
+        app_frame(app, &g, 1.0 / 60.0);
+    }
+    return app->mode == GAME_OVER;
+}
+
+static void test_app_end_to_end(void) {
+    printf("[8] app: play -> auto-save -> watch replay (verified) -> pause/step/seek\n");
+    App *app = calloc(1, sizeof *app);
+    app_init(app, 4242);
+    snprintf(app->replay_path, sizeof app->replay_path, "%s", TMP_REPLAY);
+    remove(TMP_REPLAY);
+
+    CHECK(app->mode == GAME_TITLE, "does not start on the title screen");
+
+    GameInput g; memset(&g, 0, sizeof g);
+
+    /* F6 with nothing recorded must be refused */
+    g.replay = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->mode == GAME_TITLE && !app->replaying, "replay started with no file");
+    CHECK(strstr(app->status, "no valid replay") != NULL, "status: '%s'", app->status);
+
+    /* play a live match to the end */
+    memset(&g, 0, sizeof g); g.start = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->mode == GAME_PLAYING && !app->replaying, "start did not begin a live match");
+    CHECK(run_frames_until_over(app, 11, 400000), "live match never ended");
+
+    uint32_t live_ticks = app->sim.tick;
+    uint64_t live_final = app->last_checksum;
+    int live_winner = app->sim.winner;
+    printf("    live match: %u ticks, winner=%d, %s\n", live_ticks, live_winner, app->status);
+    CHECK(strstr(app->status, "saved replay") != NULL, "match end did not save: '%s'", app->status);
+
+    /* watch it back */
+    memset(&g, 0, sizeof g); g.replay = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->mode == GAME_PLAYING && app->replaying, "F6 did not start the replay");
+    CHECK(run_frames_until_over(app, 0, 400000), "replay never ended");
+    CHECK(app->replay_result == REPLAY_RESULT_OK, "replay not verified (result=%d): '%s'",
+          app->replay_result, app->status);
+    CHECK(app->sim.tick == live_ticks, "replay ran %u ticks, live ran %u", app->sim.tick, live_ticks);
+    CHECK(app->last_checksum == live_final, "replay final state differs from live");
+    CHECK(app->sim.winner == live_winner, "replay winner differs");
+
+    /* a replay from a different sim version must be refused */
+    {
+        FILE *f = fopen(TMP_REPLAY, "r+b");
+        CHECK(f != NULL, "cannot reopen replay file");
+        if (f) {
+            fseek(f, 16, SEEK_SET);          /* config_hash */
+            int c = fgetc(f);
+            fseek(f, 16, SEEK_SET);
+            fputc(c ^ 0xFF, f);
+            fclose(f);
+        }
+        memset(&g, 0, sizeof g); g.replay = true; app_frame(app, &g, 1.0 / 60.0);
+        CHECK(app->mode == GAME_OVER && !app->replaying, "mismatched replay was started");
+        CHECK(strstr(app->status, "different sim version") != NULL, "status: '%s'", app->status);
+        CHECK(replay_save(&app->recording, TMP_REPLAY), "could not restore the replay file");
+    }
+
+    /* pause / step / seek inside a replay */
+    memset(&g, 0, sizeof g); g.replay = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->replaying && app->mode == GAME_PLAYING, "second replay did not start");
+    for (int i = 0; i < 400; ++i) { memset(&g, 0, sizeof g); app_frame(app, &g, 1.0 / 60.0); }
+    uint32_t t0 = app->sim.tick;
+    CHECK(t0 > 600, "replay did not advance (tick %u)", t0);
+
+    memset(&g, 0, sizeof g); g.pause = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->mode == GAME_PAUSED, "pause ignored");
+    for (int i = 0; i < 100; ++i) { memset(&g, 0, sizeof g); app_frame(app, &g, 1.0 / 60.0); }
+    CHECK(app->sim.tick == t0, "ticks advanced while paused (%u -> %u)", t0, app->sim.tick);
+
+    memset(&g, 0, sizeof g); g.step = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->sim.tick == t0 + 1, "single-step moved %u ticks", app->sim.tick - t0);
+
+    uint32_t t1 = app->sim.tick;
+    memset(&g, 0, sizeof g); g.seek_fwd = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->sim.tick == t1 + SIM_HZ, "seek forward: %u -> %u", t1, app->sim.tick);
+    CHECK(app->mode == GAME_PAUSED && app->replaying, "seek changed mode");
+
+    RunResult ref;
+    run_headless(app->loaded.seed, 0, &app->loaded, NULL, app->sim.tick, &ref);
+    CHECK(app->last_checksum == ref.final_checksum, "state after seek differs from a straight run");
+    run_free(&ref);
+
+    uint32_t t2 = app->sim.tick;
+    memset(&g, 0, sizeof g); g.seek_back = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->sim.tick == t2 - SIM_HZ, "seek back: %u -> %u", t2, app->sim.tick);
+    run_headless(app->loaded.seed, 0, &app->loaded, NULL, app->sim.tick, &ref);
+    CHECK(app->last_checksum == ref.final_checksum, "state after seeking BACK differs from a straight run");
+    run_free(&ref);
+
+    CHECK(app->replay_result != REPLAY_RESULT_DESYNC, "desync flagged during seek/step");
+
+    /* resume and finish: still verified */
+    memset(&g, 0, sizeof g); g.pause = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->mode == GAME_PLAYING, "resume failed");
+    CHECK(run_frames_until_over(app, 0, 400000), "resumed replay never ended");
+    CHECK(app->replay_result == REPLAY_RESULT_OK, "resumed replay not verified: '%s'", app->status);
+
+    /* a new live match after all that starts clean */
+    memset(&g, 0, sizeof g); g.start = true; app_frame(app, &g, 1.0 / 60.0);
+    CHECK(app->mode == GAME_PLAYING && !app->replaying, "could not start a new match");
+    /* The start frame also runs that frame's ticks (about 2 at 60 fps), so
+     * the tick counter is small but not necessarily 0. */
+    CHECK(app->sim.tick <= 3 && app->sim.player.score == 0 && app->sim.enemy.score == 0,
+          "new match did not start from a clean state (tick %u)", app->sim.tick);
+    CHECK(app->replay_result == REPLAY_RESULT_NONE, "old replay result leaked into the new match");
+
+    app_shutdown(app);
+    free(app);
+}
+
+static void test_two_matches_are_independent(void) {
+    printf("[9] a match does not depend on any earlier match (no hidden state)\n");
+    /* Run seed B alone, then run A followed by B in one process: B must be
+     * identical. This is what the full per-match reset is for. */
+    RunResult b_alone, a, b_after;
+    run_headless(777, 2, NULL, NULL, UINT32_MAX, &b_alone);
+    run_headless(111, 9, NULL, NULL, UINT32_MAX, &a);
+    run_headless(777, 2, NULL, NULL, UINT32_MAX, &b_after);
+
+    CHECK(traces_equal(&b_alone, &b_after), "match B differs when it follows match A");
+    CHECK(b_alone.event_hash == b_after.event_hash, "match B events differ after match A");
+    run_free(&b_alone); run_free(&a); run_free(&b_after);
+}
+
+int main(void) {
+    printf("config hash: %016llx\n\n", (unsigned long long)sim_config_hash());
+
+    test_same_seed_same_match();
+    test_inputs_and_seed_matter();
+    test_record_save_load_replay();
+    test_seek_by_resimulation();
+    test_corrupt_replays_rejected();
+    test_event_ring();
+    test_pool_reset_and_serials();
+    test_app_end_to_end();
+    test_two_matches_are_independent();
+
+    printf("\n%d checks, %d failed\n", g_checks, g_failures);
+    return g_failures ? 1 : 0;
+}
 
 
 third_party_impl.c

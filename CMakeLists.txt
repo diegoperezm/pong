@@ -50,10 +50,8 @@ add_executable(
     
     src/main.c
     src/app.c
-    src/checksum.c
     src/events.c
     src/fx.c 
-    src/replay.c
     src/input_source.c
     src/third_party_impl.c
     src/input.c

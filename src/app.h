@@ -16,12 +16,9 @@
 #include "render_types.h"
 #include "events.h"
 #include "fx.h"
-#include "replay.h"
 #include "input_source.h"
 #include "debug.h"
 
-#define APP_REPLAY_PATH_MAX      256
-#define APP_DEFAULT_REPLAY_PATH  "last_match.replay"
 
 typedef struct {
     const RenderSnapshot *previous;
@@ -30,31 +27,18 @@ typedef struct {
 } AppView;
 
 typedef struct {
-    GameMode  mode;
-    bool      replaying;
-
+    GameMode        mode;
     SimulationState sim;
     EventQueue      events;
     Fx              fx;
-
-    InputSource source;
-    ReplayData  recording;     /* the live match being (or last) recorded */
-    ReplayData  loaded;        /* the replay being played back            */
-
-    uint64_t  base_seed;
-    uint32_t  match_counter;
-
-    double    accumulator;
-    float     alpha;
-    RenderSnapshot previous;
-    RenderSnapshot current;
-
-    ReplayResult replay_result;
-    uint32_t     desync_tick;
-    uint64_t     last_checksum;
-
-    char replay_path[APP_REPLAY_PATH_MAX];
-    char status[96];
+    InputSource     source;
+    uint64_t        base_seed;
+    uint32_t        match_counter;
+    double          accumulator;
+    float           alpha;
+    RenderSnapshot  previous;
+    RenderSnapshot  current;
+    char            status[96];
 } App;
 
 void app_init(App *app, uint64_t base_seed);

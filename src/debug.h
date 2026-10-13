@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include "render_types.h"
 #include "events.h"
-#include "replay.h"
 
 typedef struct {
   int          enabled;
@@ -22,14 +21,9 @@ typedef struct {
  * state: it is the event ring, the input log, and replay bookkeeping. */
 typedef struct {
     const EventQueue *events;
-    const ReplayData *input_log;     /* recording (live) or loaded (replay) */
     uint32_t          tick;
     uint64_t          seed;
-    uint64_t          checksum;
-    bool              replaying;
-    ReplayResult      replay_result;
     uint32_t          desync_tick;
-    uint32_t          replay_total_ticks;
     uint32_t          events_lost;
     const char       *status;
 } DebugHistory;

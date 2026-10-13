@@ -163,21 +163,8 @@ static void debug_draw_history(const DebugHistory *h) {
 
     text_line(&c, F, L, RAYWHITE, "SIM   tick %u   seed %016llx",
               h->tick, (unsigned long long)h->seed);
-    text_line(&c, F, L, RAYWHITE, "state checksum %016llx",
-              (unsigned long long)h->checksum);
 
-    /* replay status */
-    if (h->replaying) {
-        text_line(&c, F, L, YELLOW, "REPLAY  %u / %u ticks", h->tick, h->replay_total_ticks);
-    } else {
-        text_line(&c, F, L, RAYWHITE, "live");
-    }
-    if (h->replay_result == REPLAY_RESULT_DESYNC)
-        text_line(&c, F, L, RED, "DESYNC at tick %u", h->desync_tick);
-    else if (h->replay_result == REPLAY_RESULT_OK)
-        text_line(&c, F, L, GREEN, "replay verified: every checksum matched");
-    else
-        text_line(&c, F, L, RAYWHITE, " ");
+    text_line(&c, F, L, RAYWHITE, " "); // Spacer line replacing replay status
 
     /* event history, oldest first */
     text_line(&c, F, L, RAYWHITE, "EVENTS (last %d)   lost: %u", HIST_EVENT_LINES, h->events_lost);
@@ -195,22 +182,8 @@ static void debug_draw_history(const DebugHistory *h) {
                   e.tick, event_type_name(e.type), e.ball_serial, detail);
     }
 
-    /* input timeline: last few CHANGES in the stream being recorded/played */
-    text_line(&c, F, L, RAYWHITE, "INPUT CHANGES (last %d)", HIST_INPUT_LINES);
-    const ReplayData *log = h->input_log;
-    uint32_t count = log ? log->change_count : 0;
-    uint32_t first = count > HIST_INPUT_LINES ? count - HIST_INPUT_LINES : 0;
-    for (int i = 0; i < HIST_INPUT_LINES; ++i) {
-        uint32_t idx = first + (uint32_t)i;
-        if (idx < count)
-            text_line(&c, F, L, RAYWHITE, "%6u  up=%d down=%d",
-                      log->changes[idx].tick, log->changes[idx].up, log->changes[idx].down);
-        else
-            text_line(&c, F, L, RAYWHITE, " ");
-    }
-
     text_line(&c, F, L, YELLOW, "%s", (h->status && h->status[0]) ? h->status : " ");
-    text_line(&c, F, L, RAYWHITE, "F3 debug  F6 replay  P pause  . step  [ ] seek");
+    text_line(&c, F, L, RAYWHITE, "F3 debug  P pause");
 }
 
 /* ============================================================
