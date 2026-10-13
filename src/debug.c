@@ -2,6 +2,7 @@
 #include "config.h"
 #include "render.h"
 #include "raylib.h"
+#include "raygui.h" 
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -19,14 +20,17 @@
  * ============================================================ */
 
 void debug_init(DebugState *debug) {
-    debug->enabled         = 0;
-    debug->show_collisions = 0;
-    debug->show_velocity   = 0;
-    debug->frame_time      = 0.0f;
-    debug->fps             = 0.0f;
-    debug->ball_count      = 0;
-    debug->particle_count  = 0;
-    debug->powerup_count   = 0;
+    debug->enabled             = 0;
+    debug->show_collisions     = 0;
+    debug->show_velocity       = 0;
+    debug->frame_time          = 0.0f;
+    debug->fps                 = 0.0f;
+    debug->ball_count          = 0;
+    debug->particle_count      = 0;
+    debug->powerup_count       = 0;
+    debug->spawn_ball_speed    = 400.0f;
+    debug->trigger_spawn_ball  = false;
+    debug->clear_balls_trigger = false;
 }
 
 static int debug_count_particles(const RenderSnapshot *snapshot) {
@@ -244,6 +248,33 @@ static void debug_draw_velocity(
     }
 }
 
+
+static void debug_draw_controls(DebugState* debug) {
+    // Define a window rectangle for entity controls
+    Rectangle panelRect = { (float)DEBUG_PANEL_X, (float)(DEBUG_PANEL_Y + DEBUG_PANEL_HEIGHT + 10), (float)DEBUG_PANEL_WIDTH, 160.0f };
+    
+    // Draw raygui window box or panel
+    if (GuiWindowBox(panelRect, "Entity Controls")) {
+        // Optional: handle window close if desired
+    }
+
+    // Adjust internal state via raygui sliders/buttons
+    Rectangle sliderSpeed = { panelRect.x + 10, panelRect.y + 40, panelRect.width - 20, 20 };
+    GuiSliderBar(sliderSpeed, "Speed", TextFormat("%.1f", debug->spawn_ball_speed), &debug->spawn_ball_speed, 100.0f, 800.0f);
+
+    Rectangle btnSpawn = { panelRect.x + 10, panelRect.y + 80, panelRect.width - 20, 30 };
+    if (GuiButton(btnSpawn, "Spawn Ball")) {
+        debug->trigger_spawn_ball = true;
+    }
+
+    Rectangle btnClear = { panelRect.x + 10, panelRect.y + 120, panelRect.width - 20, 30 };
+    if (GuiButton(btnClear, "Clear All Balls")) {
+        debug->clear_balls_trigger = true;
+    }
+}
+
+
+
 /* ============================================================
  * ENTRY POINT
  * ============================================================ */
@@ -270,4 +301,6 @@ void debug_draw(
     debug_draw_panel(debug, current);
     if (history)
         debug_draw_history(history);
+
+    debug_draw_controls((DebugState *)debug);
 }

@@ -45,7 +45,10 @@ void app_init(App *app, uint64_t base_seed);
 void app_shutdown(App *app);
 
 /* One call per rendered frame. `frame_time` is the CAPPED frame duration. */
-void app_frame(App *app, const GameInput *input, double frame_time);
+void app_frame(App* app, const GameInput *input, double frame_time);
+void app_spawn_ball(App* app, float speed);
+void app_clear_balls(App *app);
+
 
 AppView      app_view(const App *app);
 DebugHistory app_debug_history(const App *app);

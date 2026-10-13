@@ -15,6 +15,12 @@ typedef struct {
   int          ball_count;
   int          particle_count;
   int          powerup_count;
+
+  // Raygui interactive controls state
+  float        spawn_ball_speed;
+  bool         trigger_spawn_ball;
+  bool         clear_balls_trigger;
+
 } DebugState;
 
 /* Read-only view of the history the app keeps. Nothing here is simulation

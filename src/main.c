@@ -41,7 +41,18 @@ int main(void) {
         GameInput input;
         input_sample(&input);
 
-        /* Real duration of the last frame: debug readout only. */
+    
+
+        if (debug.trigger_spawn_ball) {
+            app_spawn_ball(&app, debug.spawn_ball_speed > 0.0f ? debug.spawn_ball_speed : 400.0f);
+            debug.trigger_spawn_ball = false;
+        }
+        if (debug.clear_balls_trigger) {
+            app_clear_balls(&app);
+            debug.clear_balls_trigger = false;
+        }
+
+	/* Real duration of the last frame: debug readout only. */
         double raw_frame_time = GetFrameTime();
 
         /* Clamped copy: drives the simulation (spiral-of-death guard). */

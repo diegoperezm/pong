@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 #define SCREEN_WIDTH       800
-#define SCREEN_HEIGHT      800//450
+#define SCREEN_HEIGHT      1000
 
 #define SIM_HZ             120
 #define SIM_DT             (1.0f / (float)SIM_HZ)

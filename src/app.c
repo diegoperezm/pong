@@ -1,12 +1,11 @@
 #include "app.h"
 #include "rng.h"
 #include "simulation.h"
+#include "entities.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-
-#define SEEK_STEP_TICKS ((uint32_t)SIM_HZ)   /* one second */
 
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((format(printf, 2, 3)))
@@ -96,23 +95,13 @@ static void start_live_match(App *app) {
 
     app->mode = GAME_PLAYING;
     snapshots_reset(app);
-    set_status(app, "recording match (seed %016llx)", (unsigned long long)seed);
-}
-
-
-static void finish_match(App *app) {
-    app->mode        = GAME_OVER;
-    app->accumulator = 0.0;
+    set_status(app, "match started (seed %016llx)", (unsigned long long)seed);
 }
 
 /* ============================================================
  * ONE TICK
  * ============================================================ */
 
-
-
-/* The whole per-tick pipeline, identical for live play, replay and seek:
- *   checkpoint -> input for this tick -> sim_step -> consumers -> snapshot */
 static void run_tick(App *app, bool snapshot) {
     SimulationState *sim = &app->sim;
     const uint32_t tick  = sim->tick;
@@ -129,15 +118,11 @@ static void run_tick(App *app, bool snapshot) {
 
     if (snapshot) make_snapshot(app, &app->current);
 
-    if (sim->match_over){
-      app->mode = GAME_OVER;
-      app->accumulator = 0.0;
+    if (sim->match_over) {
+        app->mode = GAME_OVER;
+        app->accumulator = 0.0;
     }
-
-
 }
-
-
 
 /* ============================================================
  * APP-LEVEL INPUT (menus, pause)
@@ -147,7 +132,7 @@ static void handle_input(App *app, const GameInput *in) {
     switch (app->mode) {
         case GAME_TITLE:
         case GAME_OVER:
-            if (in->start)       start_live_match(app);
+            if (in->start) start_live_match(app);
             break;
 
         case GAME_PLAYING:
@@ -157,10 +142,6 @@ static void handle_input(App *app, const GameInput *in) {
         case GAME_PAUSED:
             if (in->pause) app->mode = GAME_PLAYING;
             break;
-    }
-
-    if ((app->mode == GAME_PLAYING || app->mode == GAME_PAUSED)) {
-        uint32_t t = app->sim.tick;
     }
 }
 
@@ -176,7 +157,6 @@ void app_init(App *app, uint64_t base_seed) {
     app->alpha     = 1.0f;
 
     input_source_use_live(&app->source);
-
 
     event_queue_clear(&app->events);
     fx_reset(&app->fx, 0, &app->events);
@@ -198,8 +178,7 @@ void app_frame(App *app, const GameInput *input, double frame_time) {
     }
 
     if (app->mode == GAME_PLAYING) {
-        /* Held input is sampled once per frame; every tick of this frame
-         * sees it. (Ignored when the source is a replay.) */
+        /* Held input sampled once per frame */
         input_source_set_live_held(&app->source,
                                    (TickInput){ input->up, input->down });
 
@@ -220,11 +199,31 @@ void app_frame(App *app, const GameInput *input, double frame_time) {
     } else {
         app->alpha = 1.0f;
 
-        /* Frame-step: only while paused inside a replay. */
         if (app->mode == GAME_PAUSED && input->step)
             run_tick(app, true);
     }
 }
+
+
+void app_spawn_ball(App* app, float speed)
+{
+  if(app->mode != GAME_PLAYING) return;
+  
+  // default angle for manual spawns
+  float angle = 30.0f * (3.14159265f / 180.0f);
+  float vx    = cosf(angle) * speed; 
+  float vy    = sin(angle)  * speed; 
+
+  ball_create(&app->sim.balls, app->sim.world,
+	      COURT_CENTER_X - BALL_SIZE * 0.5f,
+	      COURT_CENTER_Y - BALL_SIZE * 0.5f,
+	      vx, vy);
+}; 
+
+void app_clear_balls(App* app)
+{
+ balls_clear(&app->sim.balls);
+};
 
 AppView app_view(const App *app) {
     return (AppView){ &app->previous, &app->current, app->alpha };
@@ -234,10 +233,10 @@ DebugHistory app_debug_history(const App *app) {
     DebugHistory h;
     memset(&h, 0, sizeof h);
 
-    h.events             = &app->events;
-    h.tick               = app->sim.tick;
-    h.seed               = app->sim.seed;
-    h.events_lost        = app->fx.cursor.lost;
-    h.status             = app->status;
+    h.events      = &app->events;
+    h.tick        = app->sim.tick;
+    h.seed        = app->sim.seed;
+    h.events_lost = app->fx.cursor.lost;
+    h.status      = app->status;
     return h;
 }
