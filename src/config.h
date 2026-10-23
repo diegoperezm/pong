@@ -1,56 +1,24 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define SCREEN_WIDTH       800
-#define SCREEN_HEIGHT      800//450
+#define SCREEN_WIDTH          800
+#define SCREEN_HEIGHT         600
 
-#define SIM_HZ             120
-#define SIM_DT             (1.0f / (float)SIM_HZ)
+#define SIM_HZ                60
+#define SIM_DT                (1.0f / (float)SIM_HZ)
+#define MAX_FRAME_TIME        0.25f  /* Spiral-of-death protection clamp */
 
-#define MAX_FRAME_TIME     0.1
-#define COURT_LEFT         20.0f
-#define COURT_RIGHT        780.0f
-#define COURT_TOP          20.0f
-#define COURT_BOTTOM       430.0f
+#define MAX_ENTITIES          64
+#define MAX_PARTICLES         256
+#define MAX_POWERUPS          16
 
-#define PADDLE_WIDTH       12.0f
-#define PADDLE_HEIGHT      80.0f
-
-#define PLAYER_SPEED       420.0f
-#define AI_SPEED           300.0f
-
-#define BALL_SIZE          10.0f
-
-#define INITIAL_BALL_SPEED 350.0f
-#define MAX_BALL_SPEED     700.0f
-
-#define MAX_BALLS          3 // 32
-#define INVALID_INDEX      0xFFFFFFFF
-#define MAX_PARTICLES      512 
-#define MAX_POWERUPS       16 
-#define POWERUP_SIZE       18.0f 
-#define POWERUP_INTERVAL   5.0f 
-#define WINNING_SCORE      10
-
-#define PARTICLE_COUNT_ON_SCORE 20
-#define PARTICLE_MIN_SPEED      50
-#define PARTICLE_MAX_SPEED      180
-#define PARTICLE_MIN_LIFETIME   250 // ms
-#define PARTICLE_MAX_LIFETIME   350 // ms
-#define PARTICLE_MIN_SIZE       2
-#define PARTICLE_MAX_SIZE       5
-
-
-#define DEBUG_FONT_SIZE       16
-#define DEBUG_LINE_HEIGHT     20
+/* Debug Panel Layout Constants */
 #define DEBUG_PANEL_X         10
-#define DEBUG_PANEL_Y         450
-#define DEBUG_PANEL_WIDTH     300
-#define DEBUG_PANEL_HEIGHT    350
-#define DEBUG_PADDING         10
+#define DEBUG_PANEL_Y         10
+#define DEBUG_PANEL_WIDTH     260
+#define DEBUG_PANEL_HEIGHT    220
+#define DEBUG_FONT_SIZE       10
+#define DEBUG_LINE_HEIGHT     14
+#define DEBUG_PADDING         8
 
-
-
-#endif
-
-
+#endif // CONFIG_H

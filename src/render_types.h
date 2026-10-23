@@ -1,53 +1,34 @@
 #ifndef RENDER_TYPES_H
 #define RENDER_TYPES_H
 
-/* Plain-data snapshot of the simulation, safe to hand to the renderer
- * and the debug overlay. No Box2D, no pools, no SimulationState. */
-
-#include <stdbool.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "config.h"
-#include "game_types.h"
+#include "sim_types.h"
 
 typedef struct {
-  bool         active;
-  float        x;
-  float        y;
-  float        vx;
-  float        vy;
-  uint32_t     generation;
-} RenderBall;
+    float x, y;
+    float vx, vy;
+    uint32_t serial;
+} RenderEntity;
 
 typedef struct {
-  bool           active;
-  float          x;
-  float          y;
-  float          lifetime;
-  float          max_lifetime;
-  float          size;
+    bool  active;
+    float x, y;
+    float lifetime;
+    float max_lifetime;
+    float size;
 } RenderParticle;
 
 typedef struct {
-  bool           active;
-  float          x;
-  float          y;
-  PowerupType    type;
-} RenderPowerup;
-
-typedef struct {
-  float          player_x;
-  float          player_y;
-  float          enemy_x;
-  float          enemy_y;
-  RenderBall     balls[MAX_BALLS];
-  int            ball_count;
-  RenderParticle particles[MAX_PARTICLES];
-  RenderPowerup  powerups[MAX_POWERUPS];
-  int            player_score;
-  int            enemy_score;
-  GameMode       mode;
-  int            winner;
-  float          game_time;     /* added so debug_draw needs no SimulationState */
+    GameMode mode;
+    int      winner;
+    uint32_t tick;
+    float    game_time;
+    
+    int          entity_count;
+    RenderEntity entities[MAX_ENTITIES];
+    RenderParticle particles[MAX_PARTICLES];
 } RenderSnapshot;
 
 #endif

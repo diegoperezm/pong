@@ -1,100 +1,73 @@
 #ifndef SIM_TYPES_H
 #define SIM_TYPES_H
 
-/* Simulation-side types. This is the ONLY types header that pulls in
- * Box2D. Include it from game, simulation and entities code only. */
-
 #include <stdint.h>
 #include <stdbool.h>
-#include <box2d/box2d.h>
+#include "box2d/box2d.h"
 #include "config.h"
-#include "game_types.h"
+#include "rng.h"
+
+typedef enum {
+    GAME_TITLE = 0,
+    GAME_PLAYING,
+    GAME_PAUSED,
+    GAME_OVER
+} GameMode;
 
 typedef struct {
-    float x;
-    float y;
-    float width;
-    float height;
-    float speed;
-    int score;
-} Paddle;
+    bool up;
+    bool down;
+    bool left;
+    bool right;
+    bool action1;
+    bool action2;
+    bool start;
+    bool pause;
+    bool step;
+    bool debug_toggle;
+} GameInput;
 
-typedef struct 
-{
-  uint32_t index;
-  uint32_t generation;
+typedef struct {
+    bool action1;
+    bool action2;
+} TickInput;
+
+typedef struct {
+    uint32_t index;
+    uint16_t generation;
 } EntityHandle;
 
-static const EntityHandle INVALID_HANDLE = { INVALID_INDEX, 0};
+#define INVALID_INDEX 0xFFFFFFFFu
+#define INVALID_HANDLE ((EntityHandle){ .index = INVALID_INDEX, .generation = 0 })
 
 typedef struct {
     uint32_t next_free;
-    uint32_t generation;
+    uint16_t generation;
+    bool     active;
     uint32_t dense_idx;
-    bool     active;      // Explicit live-state tracking
 } Slot;
 
-// ============================================================
-// BALL POOL (Box2D Stream)
-// ============================================================
 typedef struct {
-    uint32_t count;
-    uint32_t free_head;
-    Slot     slots[MAX_BALLS];
-
-    b2BodyId body[MAX_BALLS];
-    float    x[MAX_BALLS];        
-    float    y[MAX_BALLS];       
-    float    vx[MAX_BALLS];     
-    float    vy[MAX_BALLS];    
-    uint32_t dense_to_sparse[MAX_BALLS];
-} BallPool;
-
-
-// ============================================================
-// PARTICLES & POWERUPS
-// ============================================================
-typedef struct {
-  int   active[MAX_PARTICLES];
-  float x[MAX_PARTICLES];
-  float y[MAX_PARTICLES];
-  float vx[MAX_PARTICLES];
-  float vy[MAX_PARTICLES];
-  float lifetime[MAX_PARTICLES];
-  float max_lifetime[MAX_PARTICLES];
-  float size[MAX_PARTICLES];
-
-  int free_head;
-  int next_free[MAX_PARTICLES];
-} ParticlePool;
+    Slot         slots[MAX_ENTITIES];
+    b2BodyId     body[MAX_ENTITIES];
+    float        x[MAX_ENTITIES];
+    float        y[MAX_ENTITIES];
+    uint32_t     serial[MAX_ENTITIES];
+    uint32_t     dense_to_sparse[MAX_ENTITIES];
+    uint32_t     free_head;
+    uint32_t     next_serial;
+    uint32_t     count;
+} EntityPool;
 
 typedef struct {
-  int          active[MAX_POWERUPS];
-  float        x[MAX_POWERUPS];
-  float        y[MAX_POWERUPS];
-  float        lifetime[MAX_POWERUPS];
-  PowerupType  type[MAX_POWERUPS];
-} PowerupPool;
-
-
-typedef struct {
-    b2WorldId world;     
-    b2BodyId player_body;
-    b2BodyId enemy_body;
-
-    GameMode mode;
-    float game_time;
-    int winner;
-
-    Paddle player;
-    Paddle enemy;
-    
-    BallPool balls;
-    ParticlePool particles;
-    PowerupPool powerups;
-    float powerup_timer;
-    
-    EntityHandle ai_target;
+    uint64_t     seed;
+    uint32_t     tick;
+    bool         match_over;
+    int          winner;
+    b2WorldId    world;
+    EntityPool   entities;
+    Rng          rng;
 } SimulationState;
 
-#endif
+#endif // SIM_TYPES_H
+

@@ -1,37 +1,40 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "render_types.h"
+#include "events.h"
 
 typedef struct {
-  int          enabled;
-  int          show_collisions;
-  int          show_velocity;
-  float        frame_time;
-  float        fps;
-  int          ball_count;
-  int          particle_count;
-  int          powerup_count;
+    int          enabled;
+    float        frame_time;
+    float        fps;
+    int          entity_count;
+    int          particle_count;
 } DebugState;
+
+/* Read-only view of history (event ring, input log, status) */
+typedef struct {
+    const EventQueue *events;
+    uint32_t          tick;
+    uint64_t          seed;
+    uint32_t          desync_tick;
+    uint32_t          events_lost;
+    const char       *status;
+} DebugHistory;
 
 void debug_init(DebugState *debug);
 
-/* raw_frame_time must be the UNCAPPED duration of the last frame
- * (GetFrameTime()), not the value clamped for the simulation.
- * `current` is the snapshot that is being drawn this frame. */
-void debug_update(
-    DebugState *debug,
-    const RenderSnapshot *current,
-    float raw_frame_time
-);
+/* raw_frame_time must be the UNCAPPED duration of the last frame. */
+void debug_update(DebugState *debug, const RenderSnapshot *current, float raw_frame_time);
 
-/* previous/current/alpha must be the same values passed to render_frame()
- * so the overlay is interpolated exactly like the sprites. */
 void debug_draw(
     const DebugState *debug,
     const RenderSnapshot *previous,
     const RenderSnapshot *current,
-    float alpha
+    float alpha,
+    const DebugHistory *history
 );
 
 #endif

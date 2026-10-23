@@ -47,16 +47,20 @@ add_subdirectory(third_party/box2d)
 
 add_executable(
     pong
-    
+   
     src/main.c
-    src/third_party_impl.c
-    src/input.c
-    src/game.c
+    src/app.c
     src/simulation.c
     src/entities.c
     src/render.c
-    src/log.c
     src/debug.c
+    src/fx.c
+    src/events.c          
+    src/input.c
+    src/input_source.c
+    src/log.c
+    src/rng.c
+    src/third_party_impl.c
 )
 
 # Include Directories

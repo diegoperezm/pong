@@ -1,10 +1,8 @@
 #ifndef INPUT_H
 #define INPUT_H
 
-#include "game_types.h"
+#include "sim_types.h"
 
-void input_sample(
-  GameInput *input
-);
+void input_sample(GameInput *input);
 
 #endif
