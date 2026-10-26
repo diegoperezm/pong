@@ -27,6 +27,5 @@ void sim_shutdown(SimulationState *state);
 /* Hash of every constant that changes how a match plays out, plus a manual
  * logic-version number. Stored in replays; a mismatch means old replays
  * would not reproduce, so they are refused. */
-uint64_t sim_config_hash(void);
 
 #endif // SIMULATION_H

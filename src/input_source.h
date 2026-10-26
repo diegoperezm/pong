@@ -6,15 +6,14 @@
  * headless tests possible.
  *
  *   LIVE   - the keyboard. The app sets the held state once per frame and
- *            every tick of that frame sees it.
- *   REPLAY - a recorded stream. Also how scripted tests are built: fill a
- *            ReplayData in memory and play it back. */
+ *            every tick of that frame sees it. 
+ */
 
 #include <stdbool.h>
 #include <stdint.h>
 #include "game_types.h"
 
-typedef enum { INPUT_SOURCE_LIVE, INPUT_SOURCE_REPLAY } InputSourceKind;
+typedef enum { INPUT_SOURCE_LIVE } InputSourceKind;
 
 typedef struct {
     InputSourceKind   kind;

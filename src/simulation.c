@@ -1,6 +1,5 @@
 #include "simulation.h"
 #include "entities.h"
-#include "hash.h"
 #include "log.h"
 #include <math.h>
 #include <string.h>
@@ -412,31 +411,4 @@ void sim_step(SimulationState *state, const TickInput *input, float dt, EventQue
     powerups_update(&state->powerups, dt);
 
     state->tick++;
-}
-
-uint64_t sim_config_hash(void) {
-    uint64_t h = hash_begin();
-
-    h = hash_u32(h, SIM_LOGIC_VERSION);
-    h = hash_u32(h, (uint32_t)SIM_HZ);
-    h = hash_u32(h, (uint32_t)SIM_SUBSTEPS);
-    h = hash_u32(h, (uint32_t)MAX_BALLS);
-    h = hash_u32(h, (uint32_t)WINNING_SCORE);
-
-    h = hash_f32(h, COURT_LEFT);
-    h = hash_f32(h, COURT_RIGHT);
-    h = hash_f32(h, COURT_TOP);
-    h = hash_f32(h, COURT_BOTTOM);
-    h = hash_f32(h, PADDLE_WIDTH);
-    h = hash_f32(h, PADDLE_HEIGHT);
-    h = hash_f32(h, PADDLE_INSET);
-    h = hash_f32(h, PLAYER_SPEED);
-    h = hash_f32(h, AI_SPEED);
-    h = hash_f32(h, AI_DEADZONE_PX);
-    h = hash_f32(h, BALL_SIZE);
-    h = hash_f32(h, INITIAL_BALL_SPEED);
-    h = hash_f32(h, SERVE_ANGLE_MIN_DEG);
-    h = hash_f32(h, SERVE_ANGLE_MAX_DEG);
-
-    return h;
 }
