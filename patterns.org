@@ -1,0 +1,26 @@
+- Structure of Arrays (SoA) / Data-Oriented Design Pattern
+ Implemented in entity pools like `BallPool`, `ParticlePool`, and `PowerupPool` to store component attributes in parallel arrays for cache efficiency.
+
+
+- Generational Handle Pattern
+ Implemented via `EntityHandle` (combining index and generation numbers) to safely validate entities and prevent stale references or ABA problems.
+
+
+- Snapshot Interpolation / Double Buffering Pattern
+ Implemented using `previous` and `current` `RenderSnapshot` structs along with an `alpha` factor to smooth out movement between fixed-rate simulation ticks.
+
+
+- Fixed-Timestep Accumulator Pattern
+ Implemented in `app_frame()` using a time accumulator and `SIM_DT` to run deterministic simulation updates independently of variable frame rates.
+
+
+- Event Ring Buffer / Producer-Consumer Pattern
+ Implemented via `EventQueue` and independent `EventCursor` structures to decouple outbound simulation notifications (such as scoring and collisions) from consumers like the particle system (`Fx`).
+
+
+- Input Source Abstraction Pattern
+ Implemented via `InputSource` to present a unified interface for per-tick simulation inputs regardless of their source (`INPUT_SOURCE_LIVE` or `INPUT_SOURCE_REPLAY`).
+
+
+- Finite State Machine (FSM) / State Pattern
+ Implemented using the `GameMode` states (`GAME_TITLE`, `GAME_PLAYING`, `GAME_PAUSED`, `GAME_OVER`) to govern application behavior, input handling, and rendering screens.
