@@ -2,9 +2,10 @@
 #define GAME_TYPES_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef enum {
-    GAME_TITLE,
+    GAME_TITLE = 0,
     GAME_PLAYING,
     GAME_PAUSED,
     GAME_OVER
@@ -27,9 +28,5 @@ typedef struct {
     bool pause;
     bool debug_toggle;
 } GameInput;
-
-typedef struct {
-    Direction move_dir;
-} TickInput;
 
 #endif

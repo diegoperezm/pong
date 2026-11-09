@@ -1,28 +1,28 @@
 #ifndef EVENTS_H
 #define EVENTS_H
 
-#include <stdint.h>
 #include <stdbool.h>
-#include "game_types.h"
+#include <stdint.h>
 
 #define EVENT_RING_CAPACITY 256u
 
-_Static_assert((EVENT_RING_CAPACITY & (EVENT_RING_CAPACITY - 1u)) == 0u,
-               "EVENT_RING_CAPACITY must be a power of two");
+#if (EVENT_RING_CAPACITY & (EVENT_RING_CAPACITY - 1u)) != 0
+#error "EVENT_RING_CAPACITY must be a power of two"
+#endif
 
 typedef enum {
     EVT_NONE = 0,
     EVT_MATCH_STARTED,
     EVT_TILE_SLID,
-    EVT_TILE_SETTLED,
     EVT_MATCH_ENDED
 } EventType;
 
 typedef struct {
-    uint32_t tick;
+    uint32_t move_count;
     EventType type;
-    int tile_value;
-    int score_player;
+    uint8_t tile_value;
+    uint8_t from_index;
+    uint8_t to_index;
 } SimEvent;
 
 typedef struct {
@@ -35,12 +35,12 @@ typedef struct {
     uint32_t lost;
 } EventCursor;
 
-void event_queue_clear(EventQueue *q);
-void event_queue_push(EventQueue *q, const SimEvent *e);
-uint64_t event_queue_total(const EventQueue *q);
-bool event_queue_recent(const EventQueue *q, uint32_t back, SimEvent *out);
-void event_cursor_sync(const EventQueue *q, EventCursor *c);
-bool event_cursor_read(const EventQueue *q, EventCursor *c, SimEvent *out);
+void event_queue_clear(EventQueue *queue);
+void event_queue_push(EventQueue *queue, const SimEvent *event);
+uint64_t event_queue_total(const EventQueue *queue);
+bool event_queue_recent(const EventQueue *queue, uint32_t back, SimEvent *out);
+void event_cursor_sync(const EventQueue *queue, EventCursor *cursor);
+bool event_cursor_read(const EventQueue *queue, EventCursor *cursor, SimEvent *out);
 const char *event_type_name(EventType type);
 
 #endif

@@ -1,48 +1,42 @@
-#include <time.h>
-#include "raylib.h"
-#include "config.h"
 #include "app.h"
+#include "config.h"
+#include "debug.h"
 #include "input.h"
 #include "log.h"
-#include "debug.h"
+#include "raylib.h"
 #include "render.h"
 
-int main(void) {
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "15-Puzzle Physics Simulation");
+#include <time.h>
+
+int main(void)
+{
+    App app;
+    DebugState debug;
+
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "15-Puzzle - Discrete Logic");
     SetExitKey(KEY_NULL);
-    SetTargetFPS(60);
+    SetTargetFPS(TARGET_FPS);
 
     log_init();
     log_enable(PUZZLE_LOG_GAME);
     log_enable(PUZZLE_LOG_SIMULATION);
-
-    static App app;
+    debug_init(&debug);
     app_init(&app, (uint64_t)time(NULL));
 
-    DebugState debug;
-    debug_init(&debug);
-
     while (!WindowShouldClose()) {
-        GameInput input;
+        GameInput input = {0};
+        float frame_time = GetFrameTime();
+        AppView view;
+
         input_sample(&input);
-
-        double raw_frame_time = GetFrameTime();
-        double frame_time = raw_frame_time > MAX_FRAME_TIME ? MAX_FRAME_TIME : raw_frame_time;
-
-        if (input.debug_toggle)
-            debug.enabled = !debug.enabled;
-
+        if (input.debug_toggle) debug.enabled = !debug.enabled;
         app_frame(&app, &input, frame_time);
-
-        AppView view = app_view(&app);
-        DebugHistory history = { .events = &app.events, .tick = app.sim.tick, .seed = app.sim.seed, .status = app.status };
-
-        debug_update(&debug, view.current, (float)raw_frame_time);
+        view = app_view(&app);
+        debug_update(&debug, frame_time);
 
         BeginDrawing();
-            ClearBackground(BLACK);
-            render_frame(view.previous, view.current, view.alpha);
-            debug_draw(&debug, view.previous, view.current, view.alpha, &history);
+            render_frame(&view);
+            debug_draw(&debug, &view, &app.events);
         EndDrawing();
     }
 
