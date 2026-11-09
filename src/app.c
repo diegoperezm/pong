@@ -54,7 +54,7 @@ void app_shutdown(App *app)
 
 void app_frame(App *app, const GameInput *input, float frame_time)
 {
-    Direction direction;
+    Direction  direction;
     MoveResult move;
 
     if (!app || !input) return;
@@ -82,6 +82,7 @@ void app_frame(App *app, const GameInput *input, float frame_time)
 
     if (frame_time < 0.0f) frame_time = 0.0f;
     if (frame_time > MAX_FRAME_TIME) frame_time = MAX_FRAME_TIME;
+
     animation_update(&app->animation, frame_time);
 
     /* The simulation accepts discrete moves immediately. The application

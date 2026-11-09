@@ -19,9 +19,9 @@ typedef struct {
 
 typedef struct {
     GameMode mode;
-    const SimulationState *sim;
-    const TileAnimation *animation;
-    const char *status;
+    const    SimulationState *sim;
+    const    TileAnimation *animation;
+    const    char *status;
 } AppView;
 
 void app_init(App *app, uint64_t base_seed);

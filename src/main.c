@@ -29,9 +29,12 @@ int main(void)
         AppView view;
 
         input_sample(&input);
+
         if (input.debug_toggle) debug.enabled = !debug.enabled;
+
         app_frame(&app, &input, frame_time);
         view = app_view(&app);
+
         debug_update(&debug, frame_time);
 
         BeginDrawing();

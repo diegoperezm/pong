@@ -8,13 +8,13 @@
 
 typedef struct {
     /* Row-major board. Zero represents the empty cell. */
-    uint8_t board[TOTAL_TILES];
-    uint8_t empty_index;
+    uint8_t  board[TOTAL_TILES];
+    uint8_t  empty_index;
     uint32_t move_count;
     uint64_t seed;
-    Rng rng;
-    bool is_solved;
-    bool match_over;
+    Rng      rng;
+    bool     is_solved;
+    bool     match_over;
 } SimulationState;
 
 typedef struct {

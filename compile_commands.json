@@ -1,62 +1,62 @@
 [
 {
   "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/main.c.o -c /Users/dapm/project/pong/src/main.c",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/main.c.o -c /Users/dapm/project/pong/src/main.c",
   "file": "/Users/dapm/project/pong/src/main.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/main.c.o"
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/main.c.o"
 },
 {
   "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/app.c.o -c /Users/dapm/project/pong/src/app.c",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/animation.c.o -c /Users/dapm/project/pong/src/animation.c",
+  "file": "/Users/dapm/project/pong/src/animation.c",
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/animation.c.o"
+},
+{
+  "directory": "/Users/dapm/project/pong/build",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/app.c.o -c /Users/dapm/project/pong/src/app.c",
   "file": "/Users/dapm/project/pong/src/app.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/app.c.o"
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/app.c.o"
 },
 {
   "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/simulation.c.o -c /Users/dapm/project/pong/src/simulation.c",
-  "file": "/Users/dapm/project/pong/src/simulation.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/simulation.c.o"
-},
-{
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/render.c.o -c /Users/dapm/project/pong/src/render.c",
-  "file": "/Users/dapm/project/pong/src/render.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/render.c.o"
-},
-{
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/events.c.o -c /Users/dapm/project/pong/src/events.c",
-  "file": "/Users/dapm/project/pong/src/events.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/events.c.o"
-},
-{
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/input.c.o -c /Users/dapm/project/pong/src/input.c",
-  "file": "/Users/dapm/project/pong/src/input.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/input.c.o"
-},
-{
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/input_source.c.o -c /Users/dapm/project/pong/src/input_source.c",
-  "file": "/Users/dapm/project/pong/src/input_source.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/input_source.c.o"
-},
-{
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/rng.c.o -c /Users/dapm/project/pong/src/rng.c",
-  "file": "/Users/dapm/project/pong/src/rng.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/rng.c.o"
-},
-{
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/log.c.o -c /Users/dapm/project/pong/src/log.c",
-  "file": "/Users/dapm/project/pong/src/log.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/log.c.o"
-},
-{
-  "directory": "/Users/dapm/project/pong/build",
-  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle.dir/src/debug.c.o -c /Users/dapm/project/pong/src/debug.c",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/debug.c.o -c /Users/dapm/project/pong/src/debug.c",
   "file": "/Users/dapm/project/pong/src/debug.c",
-  "output": "CMakeFiles/15_puzzle.dir/src/debug.c.o"
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/debug.c.o"
+},
+{
+  "directory": "/Users/dapm/project/pong/build",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/events.c.o -c /Users/dapm/project/pong/src/events.c",
+  "file": "/Users/dapm/project/pong/src/events.c",
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/events.c.o"
+},
+{
+  "directory": "/Users/dapm/project/pong/build",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/input.c.o -c /Users/dapm/project/pong/src/input.c",
+  "file": "/Users/dapm/project/pong/src/input.c",
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/input.c.o"
+},
+{
+  "directory": "/Users/dapm/project/pong/build",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/log.c.o -c /Users/dapm/project/pong/src/log.c",
+  "file": "/Users/dapm/project/pong/src/log.c",
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/log.c.o"
+},
+{
+  "directory": "/Users/dapm/project/pong/build",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/render.c.o -c /Users/dapm/project/pong/src/render.c",
+  "file": "/Users/dapm/project/pong/src/render.c",
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/render.c.o"
+},
+{
+  "directory": "/Users/dapm/project/pong/build",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/rng.c.o -c /Users/dapm/project/pong/src/rng.c",
+  "file": "/Users/dapm/project/pong/src/rng.c",
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/rng.c.o"
+},
+{
+  "directory": "/Users/dapm/project/pong/build",
+  "command": "/usr/bin/cc  -isystem /opt/homebrew/Cellar/raylib/5.5/include -std=c99 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/15_puzzle_physics.dir/src/simulation.c.o -c /Users/dapm/project/pong/src/simulation.c",
+  "file": "/Users/dapm/project/pong/src/simulation.c",
+  "output": "CMakeFiles/15_puzzle_physics.dir/src/simulation.c.o"
 }
 ]
