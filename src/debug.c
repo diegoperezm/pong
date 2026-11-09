@@ -21,11 +21,14 @@ void debug_draw(const DebugState *debug, const RenderSnapshot *previous, const R
     (void)previous;
     (void)current;
     (void)alpha;
-    (void)history;
     if (!debug->enabled) return;
 
-    DrawRectangle(10, 10, 200, 70, Fade(BLACK, 0.8f));
-    DrawRectangleLines(10, 10, 200, 70, RAYWHITE);
-    DrawText(TextFormat("FPS: %.1f", debug->fps), 20, 20, 18, GREEN);
-    DrawText(TextFormat("Frame: %.2f ms", debug->frame_time * 1000.0f), 20, 45, 16, RAYWHITE);
+    DrawRectangle(10, 10, 240, 105, Fade(BLACK, 0.85f));
+    DrawRectangleLines(10, 10, 240, 105, RAYWHITE);
+    DrawText(TextFormat("FPS: %.1f", debug->fps), 20, 18, 18, GREEN);
+    DrawText(TextFormat("Frame: %.2f ms", debug->frame_time * 1000.0f), 20, 38, 16, RAYWHITE);
+    if (history) {
+        DrawText(TextFormat("Tick: %u", history->tick), 20, 58, 15, YELLOW);
+        DrawText(TextFormat("Seed: %016llx", (unsigned long long)history->seed), 20, 78, 12, LIGHTGRAY);
+    }
 }

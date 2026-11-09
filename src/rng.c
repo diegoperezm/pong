@@ -8,10 +8,12 @@ uint64_t rng_splitmix64(uint64_t x) {
 }
 
 void rng_seed(Rng *rng, uint64_t seed, uint64_t stream) {
-    rng->state = rng_splitmix64(seed + stream * 0x9e3779b97f4a7c15ULL);
+    uint64_t initial = rng_splitmix64(seed + stream * 0x9e3779b97f4a7c15ULL);
+    // Prevent all-zero state for xorshift
+    rng->state = (initial == 0ULL) ? 0x123456789ABCDEFULL : initial;
 }
 
-uint64_t rng_next_u32(Rng *rng) {
+uint64_t rng_next_u64(Rng *rng) {
     uint64_t x = rng->state;
     x ^= x >> 12;
     x ^= x << 25;
@@ -22,6 +24,6 @@ uint64_t rng_next_u32(Rng *rng) {
 
 uint32_t rng_range(Rng *rng, uint32_t min, uint32_t max) {
     if (min >= max) return min;
-    uint64_t span = (uint64_t)(max - min + 1);
-    return min + (uint32_t)(rng_next_u32(rng) % span);
+    uint64_t span = (uint64_t)max - min + 1ULL;
+    return min + (uint32_t)(rng_next_u64(rng) % span);
 }

@@ -8,7 +8,6 @@
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((format(printf, 2, 3)))
 #endif
-
 static void set_status(App *app, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -22,7 +21,12 @@ static void make_snapshot(const App *app, RenderSnapshot *snap) {
     snap->move_count = s->move_count;
     snap->game_time = (float)s->tick * SIM_DT;
     snap->is_solved = s->is_solved;
-    memcpy(snap->board, s->board, sizeof(s->board));
+
+    for (int i = 0; i < TOTAL_TILES - 1; ++i) {
+        snap->tiles[i].value = s->tiles[i].value;
+        snap->tiles[i].row   = s->tiles[i].position.row;
+        snap->tiles[i].col   = s->tiles[i].position.col;
+    }
 }
 
 static void snapshots_reset(App *app) {
@@ -52,11 +56,18 @@ static void run_tick(App *app, bool snapshot) {
 
     if (snapshot) app->previous = app->current;
     sim_step(sim, &in, (float)SIM_DT, &app->events);
-    if (snapshot) make_snapshot(app, &app->current);
+    input_source_consume_one_shot(&app->source);
 
     if (sim->match_over) {
         app->mode = GAME_OVER;
         app->accumulator = 0.0;
+        // Fix Critical 1: Update snapshot after changing mode to GAME_OVER
+        if (snapshot) {
+            make_snapshot(app, &app->current);
+            app->previous = app->current;
+        }
+    } else {
+        if (snapshot) make_snapshot(app, &app->current);
     }
 }
 
@@ -67,10 +78,16 @@ static void handle_input(App *app, const GameInput *in) {
             if (in->start) start_live_match(app);
             break;
         case GAME_PLAYING:
-            if (in->pause) app->mode = GAME_PAUSED;
+            if (in->pause) {
+                app->mode = GAME_PAUSED;
+                input_source_clear(&app->source); // Fix Medium 7: clear pending input on pause
+            }
             break;
         case GAME_PAUSED:
-            if (in->pause) app->mode = GAME_PLAYING;
+            if (in->pause) {
+                app->mode = GAME_PLAYING;
+                input_source_clear(&app->source);
+            }
             break;
     }
 }
@@ -99,18 +116,31 @@ void app_frame(App *app, const GameInput *input, double frame_time) {
     }
 
     if (app->mode == GAME_PLAYING) {
-        input_source_set_live_held(&app->source, (TickInput){
-            input->up, input->down, input->left, input->right
-        });
+        Direction dir = DIR_NONE;
+        if (input->up)    dir = DIR_UP;
+        if (input->down)  dir = DIR_DOWN;
+        if (input->left)  dir = DIR_LEFT;
+        if (input->right) dir = DIR_RIGHT;
 
-        app->accumulator += frame_time;
-        if (input->up || input->down || input->left || input->right) {
-            run_tick(app, true);
+        if (dir != DIR_NONE) {
+            input_source_set_pending(&app->source, (TickInput){ .move_dir = dir });
         }
 
-        if (app->mode != GAME_PLAYING) {
-            app->accumulator = 0.0;
-            snapshots_reset(app);
+        app->accumulator += frame_time;
+
+        while (app->accumulator >= (double)SIM_DT) {
+            run_tick(app, true);
+            app->accumulator -= (double)SIM_DT;
+
+            if (app->mode != GAME_PLAYING) {
+                app->accumulator = 0.0;
+                break;
+            }
+        }
+
+        if (app->mode == GAME_PLAYING) {
+            app->alpha = (float)(app->accumulator / (double)SIM_DT);
+        } else {
             app->alpha = 1.0f;
         }
     } else {

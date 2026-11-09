@@ -8,7 +8,7 @@
 #include "render.h"
 
 int main(void) {
-    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "15-Puzzle");
+    InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "15-Puzzle Physics Simulation");
     SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 

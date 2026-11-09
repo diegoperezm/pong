@@ -9,11 +9,13 @@ typedef enum { INPUT_SOURCE_LIVE } InputSourceKind;
 
 typedef struct {
     InputSourceKind kind;
-    TickInput live_held;
+    TickInput pending_input; /* Renamed from live_held per review feedback */
 } InputSource;
 
 void input_source_use_live(InputSource *s);
-void input_source_set_live_held(InputSource *s, TickInput held);
+void input_source_set_pending(InputSource *s, TickInput held);
+void input_source_consume_one_shot(InputSource *s);
+void input_source_clear(InputSource *s);
 TickInput input_source_at(InputSource *s, uint32_t tick);
 
 #endif

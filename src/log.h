@@ -3,7 +3,12 @@
 
 #include <stdint.h>
 
-#define LOG_CATEGORIES(X)          X(PUZZLE_LOG_GAME,       "GAME")   X(PUZZLE_LOG_INPUT,      "INPUT")  X(PUZZLE_LOG_SIMULATION, "SIM")    X(PUZZLE_LOG_RENDER,     "RENDER") 
+#define LOG_CATEGORIES(X)          \
+    X(PUZZLE_LOG_GAME,       "GAME")   \
+    X(PUZZLE_LOG_INPUT,      "INPUT")  \
+    X(PUZZLE_LOG_SIMULATION, "SIM")    \
+    X(PUZZLE_LOG_RENDER,     "RENDER")
+
 #define LOG_CATEGORY_ENUM(category, name) category,
 
 typedef enum {

@@ -1,6 +1,12 @@
-# 15-Puzzle (C99 & Raylib)
+# 15-Puzzle Fixed-Timestep Physics Simulation (C99 & Raylib)
 
-Converted from the deterministic Pong architecture to a fully functional 15-Puzzle sliding block puzzle game.
+A deterministic fixed-timestep physics simulation implementing grid-constrained sliding block puzzle dynamics.
+
+## Key Features
+- **Fixed-Timestep Accumulator**: Deterministic simulation execution independent of render FPS.
+- **Physical Tile Integration**: Smooth velocity and position integration towards logical target slots.
+- **Snapshot Interpolation**: Sub-frame visual lerping via snapshot alpha blending.
+- **One-Shot Input Queueing**: Input commands consumed once per key-stroke to prevent multi-step over-triggering.
 
 ## Build Instructions (CMake)
 
@@ -9,11 +15,5 @@ mkdir build
 cd build
 cmake ..
 make
-./15_puzzle
+./15_puzzle_physics
 ```
-
-## Controls
-- **Arrow Keys / WASD**: Slide tiles into the empty space.
-- **Enter / Space**: Start / Restart puzzle.
-- **P**: Pause / Unpause.
-- **F3**: Toggle debug overlay.

@@ -15,7 +15,11 @@ bool event_queue_recent(const EventQueue *q, uint32_t back, SimEvent *out) {
     *out = q->events[(q->head - 1u - back) & RING_MASK];
     return true;
 }
-void event_cursor_sync(const EventQueue *q, EventCursor *c) { c->next = q ? q->head : 0; }
+void event_cursor_sync(const EventQueue *q, EventCursor *c) {
+    if (!c) return;
+    c->next = q ? q->head : 0;
+    c->lost = 0;
+}
 bool event_cursor_read(const EventQueue *q, EventCursor *c, SimEvent *out) {
     if(!q || !c || !out) return false;
     if(c->next > q->head) c->next = q->head;
@@ -29,8 +33,9 @@ bool event_cursor_read(const EventQueue *q, EventCursor *c, SimEvent *out) {
 const char *event_type_name(EventType type) {
     switch(type) {
         case EVT_MATCH_STARTED: return "MATCH_START";
-        case EVT_TILE_SLID: return "TILE_SLID";
-        case EVT_MATCH_ENDED: return "MATCH_END";
+        case EVT_TILE_SLID:     return "TILE_SLID";
+        case EVT_TILE_SETTLED:  return "TILE_SETTLED";
+        case EVT_MATCH_ENDED:   return "MATCH_END";
         default: return "NONE";
     }
 }

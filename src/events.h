@@ -7,10 +7,14 @@
 
 #define EVENT_RING_CAPACITY 256u
 
+_Static_assert((EVENT_RING_CAPACITY & (EVENT_RING_CAPACITY - 1u)) == 0u,
+               "EVENT_RING_CAPACITY must be a power of two");
+
 typedef enum {
     EVT_NONE = 0,
     EVT_MATCH_STARTED,
     EVT_TILE_SLID,
+    EVT_TILE_SETTLED,
     EVT_MATCH_ENDED
 } EventType;
 

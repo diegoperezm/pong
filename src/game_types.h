@@ -11,16 +11,12 @@ typedef enum {
 } GameMode;
 
 typedef enum {
-    SIDE_NONE = 0,
-    SIDE_PLAYER,
-    SIDE_ENEMY
-} Side;
-
-typedef enum {
-    WALL_NONE = 0,
-    WALL_TOP,
-    WALL_BOTTOM
-} Wall;
+    DIR_NONE = 0,
+    DIR_UP,
+    DIR_DOWN,
+    DIR_LEFT,
+    DIR_RIGHT
+} Direction;
 
 typedef struct {
     bool up;
@@ -33,10 +29,7 @@ typedef struct {
 } GameInput;
 
 typedef struct {
-    bool up;
-    bool down;
-    bool left;
-    bool right;
+    Direction move_dir;
 } TickInput;
 
 #endif
